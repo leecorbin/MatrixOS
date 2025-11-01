@@ -13,12 +13,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.led_api import create_matrix
 from src.input import KeyboardInput, Menu
+from src.config import parse_matrix_args
 
 
 def show_splash(matrix):
     """Show ZX Spectrum style splash screen."""
     matrix.clear()
     matrix.fill((0, 0, 0))
+
+    width = matrix.width
+    height = matrix.height
 
     # Rainbow border
     colors = [
@@ -28,21 +32,23 @@ def show_splash(matrix):
 
     for i in range(3):
         color = colors[i % len(colors)]
-        matrix.rect(i, i, 64 - 2*i, 64 - 2*i, color, fill=False)
+        matrix.rect(i, i, width - 2*i, height - 2*i, color, fill=False)
 
     # Title
-    matrix.centered_text("PI", 12, (0, 255, 255))
-    matrix.centered_text("MATRIX", 20, (0, 255, 255))
+    matrix.centered_text("PI", height // 2 - 8, (0, 255, 255))
+    matrix.centered_text("MATRIX", height // 2, (0, 255, 255))
 
-    # Loading bars
-    bar_y = 32
+    # Loading bars (centered horizontally)
+    bar_y = height // 2 + 12
+    bar_width = min(width - 16, 48)
+    bar_x = (width - bar_width) // 2
     for i in range(5):
         color = colors[i]
-        matrix.rect(8, bar_y, 48, 2, color, fill=True)
+        matrix.rect(bar_x, bar_y, bar_width, 2, color, fill=True)
         bar_y += 3
 
     # Version
-    matrix.centered_text("V1.0", 52, (255, 255, 255))
+    matrix.centered_text("V1.0", height - 12, (255, 255, 255))
 
     matrix.show()
     time.sleep(1.5)
@@ -65,19 +71,26 @@ def run_demo(demo_file):
 
 def main():
     """Main demo launcher."""
+    # Parse command-line arguments
+    args = parse_matrix_args("Pi-Matrix Demo Launcher")
+
     print("\n" + "="*64)
     print("PI-MATRIX DEMO LAUNCHER")
     print("="*64)
+    print(f"\nResolution: {args.width}x{args.height} ({args.color_mode.upper()})")
     print("\nControls:")
     print("  ↑/↓    - Navigate menu")
     print("  Enter  - Select demo")
     print("  ESC/Q  - Quit")
     print("  0-9    - Quick select demo")
     print("  S/B/T  - Quick select game (Snake/Breakout/Tetris)")
+    print("\nCommand-line options:")
+    print("  --resolution 128x64  Use 128x64 display")
+    print("  --width 128          Set custom width")
     print("\n" + "="*64 + "\n")
 
     # Create matrix and input
-    matrix = create_matrix(64, 64, 'rgb')
+    matrix = create_matrix(args.width, args.height, args.color_mode)
 
     with KeyboardInput() as input_handler:
         # Show splash

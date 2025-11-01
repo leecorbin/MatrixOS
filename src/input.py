@@ -92,12 +92,26 @@ class KeyboardInput:
             # Read character(s)
             char = sys.stdin.read(1)
 
+            # If we got nothing, return None
+            if not char:
+                return None
+
             # Handle escape sequences (arrow keys, etc.)
             if char == '\x1b':  # ESC sequence
                 # Try to read the rest of the sequence
-                ready, _, _ = select.select([sys.stdin], [], [], 0.1)
+                ready, _, _ = select.select([sys.stdin], [], [], 0.05)
                 if ready:
-                    char += sys.stdin.read(2)
+                    next_char = sys.stdin.read(1)
+                    if next_char == '[':
+                        # Read the final character
+                        ready, _, _ = select.select([sys.stdin], [], [], 0.05)
+                        if ready:
+                            final_char = sys.stdin.read(1)
+                            char = '\x1b[' + final_char
+                        else:
+                            char = '\x1b['
+                    else:
+                        char += next_char
                 else:
                     # Just ESC key
                     return InputEvent(InputEvent.BACK, char)
@@ -120,8 +134,12 @@ class KeyboardInput:
             if event:
                 return event
 
-    def _map_key(self, char: str) -> InputEvent:
+    def _map_key(self, char: str) -> Optional[InputEvent]:
         """Map raw key to InputEvent."""
+        # Skip empty strings
+        if not char:
+            return None
+
         # Arrow keys (ANSI escape sequences)
         if char == '\x1b[A':
             return InputEvent(InputEvent.UP, char)

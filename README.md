@@ -21,6 +21,9 @@ matrix.show()
 git clone https://github.com/leecorbin/pi-matrix.git
 cd pi-matrix
 python3 examples/start_here.py
+
+# Or try 128x64 resolution:
+python3 examples/start_here.py --resolution 128x64
 ```
 
 This shows a ZX Spectrum-style menu where you can explore all features!
@@ -65,7 +68,24 @@ This system is designed for:
 - **RGB LED Matrix Panels** (64×64 or 128×64 pixels)
 - Libraries like [rpi-rgb-led-matrix](https://github.com/hzeller/rpi-rgb-led-matrix)
 
-**Current Status:** Terminal emulation working. Physical LED matrix support coming soon!
+**Current Status:** Terminal emulation working with configurable resolutions. Physical LED matrix support coming soon!
+
+### Resolution Support
+
+All examples support multiple resolutions via command-line arguments:
+
+```bash
+# Default 64x64
+python3 examples/game_snake.py
+
+# 128x64 for wider displays
+python3 examples/game_snake.py --resolution 128x64
+
+# Or specify dimensions directly
+python3 examples/game_snake.py --width 128 --height 64
+```
+
+Supported resolutions: **64×64** and **128×64**
 
 ## 📖 Documentation
 

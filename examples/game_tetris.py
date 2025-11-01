@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.led_api import create_matrix
 from src.input import KeyboardInput, InputEvent
+from src.config import parse_matrix_args
 
 
 # Tetromino shapes (as 4x4 grids)
@@ -277,9 +278,12 @@ class Tetris:
 
 
 def main():
+    args = parse_matrix_args("Tetris")
+
     print("\n" + "="*64)
     print("TETRIS")
     print("="*64)
+    print(f"\nResolution: {args.width}x{args.height}")
     print("\nControls:")
     print("  ←/→  - Move piece")
     print("  ↑    - Rotate")
@@ -287,7 +291,7 @@ def main():
     print("  Q    - Quit")
     print("\n" + "="*64 + "\n")
 
-    matrix = create_matrix(64, 64, 'rgb')
+    matrix = create_matrix(args.width, args.height, args.color_mode)
 
     with KeyboardInput() as input_handler:
         game = Tetris(matrix, input_handler)

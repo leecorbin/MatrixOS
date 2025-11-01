@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from src.led_api import create_matrix
 from src.input import KeyboardInput, InputEvent
+from src.config import parse_matrix_args
 
 
 class DrawingApp:
@@ -111,9 +112,12 @@ class DrawingApp:
 
 def main():
     """Run the drawing app."""
+    args = parse_matrix_args("Matrix OS Drawing App")
+
     print("\n" + "="*64)
     print("MATRIX OS - DRAWING APP EXAMPLE")
     print("="*64)
+    print(f"\nResolution: {args.width}x{args.height}")
     print("\nControls:")
     print("  Arrow Keys  - Move cursor")
     print("  SPACE       - Toggle pixel on/off")
@@ -122,7 +126,7 @@ def main():
     print("\n" + "="*64 + "\n")
 
     # Create matrix and input
-    matrix = create_matrix(64, 64, 'rgb')
+    matrix = create_matrix(args.width, args.height, args.color_mode)
 
     with KeyboardInput() as input_handler:
         app = DrawingApp(matrix, input_handler)
