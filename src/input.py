@@ -7,6 +7,8 @@ import sys
 import select
 import tty
 import termios
+import fcntl
+import os
 from typing import Optional, Callable
 
 
@@ -89,35 +91,33 @@ class KeyboardInput:
                 return None
 
         try:
-            # Read character(s)
-            char = sys.stdin.read(1)
+            # Make stdin non-blocking temporarily to read all available chars
+            fd = sys.stdin.fileno()
+            flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+            try:
+                # Read all available characters at once
+                chars = ''
+                while True:
+                    try:
+                        c = sys.stdin.read(1)
+                        if c:
+                            chars += c
+                        else:
+                            break
+                    except (IOError, BlockingIOError):
+                        break
+            finally:
+                # Restore blocking mode
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags)
 
             # If we got nothing, return None
-            if not char:
+            if not chars:
                 return None
 
-            # Handle escape sequences (arrow keys, etc.)
-            if char == '\x1b':  # ESC sequence
-                # Try to read the rest of the sequence
-                ready, _, _ = select.select([sys.stdin], [], [], 0.05)
-                if ready:
-                    next_char = sys.stdin.read(1)
-                    if next_char == '[':
-                        # Read the final character
-                        ready, _, _ = select.select([sys.stdin], [], [], 0.05)
-                        if ready:
-                            final_char = sys.stdin.read(1)
-                            char = '\x1b[' + final_char
-                        else:
-                            char = '\x1b['
-                    else:
-                        char += next_char
-                else:
-                    # Just ESC key
-                    return InputEvent(InputEvent.BACK, char)
-
-            # Map keys to events
-            return self._map_key(char)
+            # Map the characters to an event
+            return self._map_key(chars)
 
         except Exception as e:
             return None
