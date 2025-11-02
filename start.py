@@ -2,12 +2,14 @@
 """
 MatrixOS Launcher
 Displays app icons in a grid and allows navigation/launching
+
+All apps use the framework - no subprocess execution.
 """
 
 import sys
 import os
 import json
-import subprocess
+import importlib.util
 from pathlib import Path
 
 # Add matrixos to path
@@ -16,6 +18,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from matrixos.led_api import create_matrix
 from matrixos.input import KeyboardInput, InputEvent
 from matrixos.config import parse_matrix_args
+from matrixos.app_framework import OSContext
 
 
 # Color palette for icons
@@ -77,40 +80,58 @@ class App:
                     color = COLOR_PALETTE.get(color_code, (255, 255, 255))
                     matrix.set_pixel(x + col_idx, y + row_idx, color)
 
-    def launch(self):
-        """Launch the app."""
+    def launch(self, os_context):
+        """Launch the app using the framework.
+
+        Args:
+            os_context: OSContext for app execution
+
+        Returns:
+            True if app was launched successfully
+        """
         main_py = self.folder_path / "main.py"
-        if main_py.exists():
-            print(f"\n{'='*64}")
-            print(f"Launching: {self.name}")
-            print(f"{'='*64}\n")
+        if not main_py.exists():
+            return False
 
-            # Get project root directory (where matrixos/ is located)
-            project_root = Path(__file__).parent
+        print(f"\n{'='*64}")
+        print(f"Launching: {self.name}")
+        print(f"{'='*64}\n")
 
-            # Set up environment with PYTHONPATH including project root
-            env = os.environ.copy()
-            if 'PYTHONPATH' in env:
-                env['PYTHONPATH'] = f"{project_root}:{env['PYTHONPATH']}"
+        try:
+            # Import app module
+            spec = importlib.util.spec_from_file_location(
+                f"app_{self.folder_path.name}",
+                main_py
+            )
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            # Call the app's run() function
+            if hasattr(module, 'run'):
+                module.run(os_context)
             else:
-                env['PYTHONPATH'] = str(project_root)
-
-            # Run the app with proper environment
-            subprocess.run([sys.executable, str(main_py)], env=env)
+                print(f"Error: App '{self.name}' missing run(os_context) function!")
+                return False
 
             print(f"\n{'='*64}")
             print(f"{self.name} exited.")
             print(f"{'='*64}\n")
             return True
-        return False
+
+        except Exception as e:
+            print(f"Error loading app: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
 
 class Launcher:
     """MatrixOS app launcher with icon grid."""
 
-    def __init__(self, matrix, input_handler):
+    def __init__(self, matrix, input_handler, os_context=None):
         self.matrix = matrix
         self.input_handler = input_handler
+        self.os_context = os_context
         self.apps = []
         self.selected_index = 0
         self.icon_size = 16
@@ -208,7 +229,7 @@ class Launcher:
                 elif event.key == 'OK':  # Enter key maps to OK
                     if 0 <= self.selected_index < len(self.apps):
                         selected_app = self.apps[self.selected_index]
-                        selected_app.launch()
+                        selected_app.launch(self.os_context)
                         # Redraw after returning from app
                         self.draw()
 
@@ -235,7 +256,10 @@ def main():
 
     # Run launcher
     with KeyboardInput() as input_handler:
-        launcher = Launcher(matrix, input_handler)
+        # Create OS context for framework apps
+        os_context = OSContext(matrix, input_handler)
+
+        launcher = Launcher(matrix, input_handler, os_context)
 
         if len(launcher.apps) == 0:
             print("No apps found! Create an app folder with main.py and config.json.")

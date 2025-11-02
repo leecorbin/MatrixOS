@@ -21,8 +21,9 @@ class InputEvent:
     LEFT = 'LEFT'
     RIGHT = 'RIGHT'
     OK = 'OK'          # Enter key
-    BACK = 'BACK'      # ESC or Q
+    BACK = 'BACK'      # ESC
     QUIT = 'QUIT'      # Q
+    HELP = 'HELP'      # TAB key
 
     def __init__(self, key: str, raw: str = None):
         """
@@ -158,9 +159,17 @@ class KeyboardInput:
         elif char == '\x1b':
             return InputEvent(InputEvent.BACK, char)
 
+        # Backspace (universal "go back" button)
+        elif char in ['\x7f', '\x08']:  # DEL or BS
+            return InputEvent(InputEvent.BACK, char)
+
         # Q for quit/back
         elif char.lower() == 'q':
             return InputEvent(InputEvent.QUIT, char)
+
+        # TAB for help
+        elif char == '\t':
+            return InputEvent(InputEvent.HELP, char)
 
         # Any other character (including numbers, letters)
         else:

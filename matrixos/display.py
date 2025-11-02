@@ -208,4 +208,17 @@ class TerminalRenderer:
             # Clear terminal and move cursor to home
             print('\033[2J\033[H', end='')
 
-        print(self.render(use_half_blocks))
+        # Render the matrix
+        matrix_output = self.render(use_half_blocks)
+        print(matrix_output)
+
+        # Calculate number of rows used by matrix
+        # Half-block mode uses height/2 rows, full mode uses height rows
+        rows_used = (self.display.height // 2) if use_half_blocks else self.display.height
+
+        # Position cursor below matrix for log output (leave 1 blank line)
+        # This ensures any print() statements appear below the matrix
+        print(f'\033[{rows_used + 2};1H', end='')
+
+        # Add a separator line
+        print('─' * min(self.display.width, 80))

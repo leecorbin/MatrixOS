@@ -1,6 +1,6 @@
 {
   "name": "Demos",
+  "description": "LED Matrix demos and examples",
   "author": "MatrixOS",
-  "version": "1.0.0",
-  "description": "Visual demos and showcases"
+  "version": "1.0.0"
 }
