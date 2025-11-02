@@ -142,7 +142,7 @@ class KeyboardInput:
         if not char:
             return None
 
-        # Arrow keys (ANSI escape sequences)
+        # Arrow keys (ANSI escape sequences) - check BEFORE bare ESC!
         if char == '\x1b[A':
             return InputEvent(InputEvent.UP, char)
         elif char == '\x1b[B':
@@ -151,14 +151,14 @@ class KeyboardInput:
             return InputEvent(InputEvent.RIGHT, char)
         elif char == '\x1b[D':
             return InputEvent(InputEvent.LEFT, char)
+        
+        # ESC = HOME button (return to launcher) - only if bare ESC
+        elif char == '\x1b':
+            return InputEvent(InputEvent.HOME, char)
 
         # Enter/Return
         elif char in ['\n', '\r']:
             return InputEvent(InputEvent.OK, char)
-
-        # ESC = HOME button (return to launcher)
-        elif char == '\x1b':
-            return InputEvent(InputEvent.HOME, char)
 
         # Backspace = BACK button (go back one step, dismiss overlays)
         elif char in ['\x7f', '\x08']:  # DEL or BS
