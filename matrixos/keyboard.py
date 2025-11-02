@@ -274,10 +274,6 @@ class OnScreenKeyboard:
                 label_x = key_x + (key_width - len(label) * 6) // 2
                 label_y = row_y + 1
                 matrix.text(label, label_x, label_y, text_color)
-        
-        # Instructions
-        inst_y = height - 8
-        matrix.text("ARROWS:NAV ENTER:TYPE ESC:CANCEL", 2, inst_y, (150, 150, 150))
 
 
 def show_keyboard(matrix, input_handler, prompt: str = "Enter text:", 

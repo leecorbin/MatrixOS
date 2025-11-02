@@ -179,7 +179,12 @@ class OSContext:
         # Activate new app
         self.active_app = app
         app.active = True
-        app.on_activate()
+        try:
+            app.on_activate()
+        except Exception as e:
+            debug_log(f"[ERROR] on_activate() crashed: {e}")
+            import traceback
+            debug_log(traceback.format_exc())
 
         # Clear screen for new app
         self.matrix.clear()
@@ -370,7 +375,16 @@ class OSContext:
 
             # Update active app
             if self.active_app:
-                self.active_app.on_update(delta_time)
+                try:
+                    self.active_app.on_update(delta_time)
+                except Exception as e:
+                    debug_log(f"[ERROR] {self.active_app.name}.on_update() crashed: {e}")
+                    import traceback
+                    debug_log(traceback.format_exc())
+                    # Exit app on crash
+                    if self.launcher:
+                        self.switch_to_app(self.launcher)
+                    continue
 
                 # Only render if something changed (dirty flag)
                 if self.active_app.dirty:
@@ -380,7 +394,16 @@ class OSContext:
                         self.render_help_overlay()
                     else:
                         # Show normal app UI
-                        self.active_app.render(self.matrix)
+                        try:
+                            self.active_app.render(self.matrix)
+                        except Exception as e:
+                            debug_log(f"[ERROR] {self.active_app.name}.render() crashed: {e}")
+                            import traceback
+                            debug_log(traceback.format_exc())
+                            # Exit app on crash
+                            if self.launcher:
+                                self.switch_to_app(self.launcher)
+                            continue
                     self.matrix.show()
 
             # Background tasks (~1 per second)

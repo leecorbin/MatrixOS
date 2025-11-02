@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from matrixos.app_framework import App
 from matrixos.input import InputEvent
 from matrixos import layout
+from matrixos import keyboard
 
 
 class TimerApp(App):
@@ -32,7 +33,10 @@ class TimerApp(App):
         self.alarm_start_time = 0
         self.setting_mode = True
         self.preset_times = [5, 10, 15, 30, 60]  # Seconds
+        self.preset_labels = ["5s", "10s", "15s", "30s", "1m", "Custom..."]
         self.selected_preset = 1  # Default to 10 seconds
+        self.needs_keyboard = False
+        self.keyboard_prompt = "Enter time (e.g. 90 or 1:30):"
 
     def get_help_text(self):
         """Return app-specific help."""
@@ -50,6 +54,58 @@ class TimerApp(App):
             self.alarm_triggered = False
             self.setting_mode = True
             self.timer_running = False
+    
+    def handle_custom_time_input(self, matrix, input_handler):
+        """Handle keyboard input for custom timer duration."""
+        time_str = keyboard.show_keyboard(matrix, input_handler, 
+                                         prompt="Time (90 or 1:30):",
+                                         initial="")
+        if time_str:
+            # Parse time string
+            seconds = self.parse_time_string(time_str)
+            if seconds and seconds > 0:
+                return seconds
+        return None
+    
+    def handle_keyboard_input(self, matrix, input_handler):
+        """Called by framework when needs_keyboard is set."""
+        seconds = self.handle_custom_time_input(matrix, input_handler)
+        if seconds:
+            # Start timer with custom time
+            self.total_time = seconds
+            self.countdown = seconds
+            self.timer_running = True
+            self.setting_mode = False
+    
+    def parse_time_string(self, time_str):
+        """Parse time string like '90', '1:30', '2m', '30s' into seconds."""
+        time_str = time_str.strip().lower()
+        if not time_str:
+            return None
+        
+        try:
+            # Check for mm:ss format
+            if ':' in time_str:
+                parts = time_str.split(':')
+                if len(parts) == 2:
+                    minutes = int(parts[0])
+                    seconds = int(parts[1])
+                    return minutes * 60 + seconds
+            
+            # Check for minutes suffix
+            if time_str.endswith('m'):
+                minutes = int(time_str[:-1])
+                return minutes * 60
+            
+            # Check for seconds suffix
+            if time_str.endswith('s'):
+                seconds = int(time_str[:-1])
+                return seconds
+            
+            # Plain number - assume seconds
+            return int(time_str)
+        except ValueError:
+            return None
 
     def on_update(self, delta_time):
         """Update every frame when active."""
@@ -87,16 +143,26 @@ class TimerApp(App):
         if self.setting_mode:
             # Setting timer duration
             if event.key == InputEvent.UP:
-                self.selected_preset = (self.selected_preset - 1) % len(self.preset_times)
+                self.selected_preset = (self.selected_preset - 1) % len(self.preset_labels)
                 return True
             elif event.key == InputEvent.DOWN:
-                self.selected_preset = (self.selected_preset + 1) % len(self.preset_times)
+                self.selected_preset = (self.selected_preset + 1) % len(self.preset_labels)
                 return True
             elif event.key == InputEvent.OK or event.key == ' ':
-                # Start timer
-                self.total_time = self.preset_times[self.selected_preset]
-                self.countdown = self.total_time
-                self.timer_running = True
+                # Check if custom option selected
+                if self.selected_preset == len(self.preset_times):
+                    # Custom time - request keyboard
+                    self.needs_keyboard = True
+                    self.dirty = True
+                    return True
+                else:
+                    # Start timer with preset
+                    self.total_time = self.preset_times[self.selected_preset]
+                    self.countdown = self.total_time
+                    self.timer_running = True
+                    self.setting_mode = False
+                    self.dirty = True
+                    return True
                 self.setting_mode = False
                 return True
 
@@ -139,8 +205,7 @@ class TimerApp(App):
             matrix.text("TIMER", 2, 2, (0, 255, 255))
 
             # Use menu_list helper for preset selection!
-            preset_items = [f"{p}s" for p in self.preset_times]
-            layout.menu_list(matrix, preset_items, self.selected_preset, y_start=16)
+            layout.menu_list(matrix, self.preset_labels, self.selected_preset, y_start=16)
 
             # Instructions at bottom
             layout.center_text(matrix, "ENTER=START", height - 8, (150, 150, 150))

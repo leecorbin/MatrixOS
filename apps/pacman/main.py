@@ -318,12 +318,12 @@ class PacManGame(App):
         
         # Game objects
         self.maze = Maze()
-        self.pacman = PacMan(64, 96)
+        self.pacman = PacMan(64, 112)  # Row 14, col 8 - bottom center corridor
         self.ghosts = [
-            Ghost("Blinky", 64, 56, (255, 0, 0), (112, 8)),      # Red - top right
-            Ghost("Pinky", 56, 64, (255, 184, 255), (16, 8)),    # Pink - top left
-            Ghost("Inky", 72, 64, (0, 255, 255), (112, 120)),    # Cyan - bottom right
-            Ghost("Clyde", 64, 64, (255, 184, 82), (16, 120)),   # Orange - bottom left
+            Ghost("Blinky", 64, 8, (255, 0, 0), (112, 8)),       # Row 1, col 8 - top center
+            Ghost("Pinky", 16, 32, (255, 184, 255), (16, 8)),    # Row 4, col 2 - left side
+            Ghost("Inky", 112, 32, (0, 255, 255), (112, 120)),   # Row 4, col 14 - right side
+            Ghost("Clyde", 64, 72, (255, 184, 82), (16, 120)),   # Row 9, col 8 - middle
         ]
         
         # Game state
@@ -388,6 +388,7 @@ class PacManGame(App):
         if self.game_over or self.won or self.death_animation > 0:
             if self.death_animation > 0:
                 self.death_animation -= 1
+                self.dirty = True
                 if self.death_animation == 0:
                     if self.lives > 0:
                         self.reset_positions()
@@ -400,6 +401,12 @@ class PacManGame(App):
             return
         
         self.game_time += 1
+        self.dirty = True  # Always redraw for animation
+        
+        # Debug: log pac-man position once
+        if self.game_time == 10:
+            print(f"[DEBUG] Pac-Man pos: ({self.pacman.x}, {self.pacman.y}) dir: ({self.pacman.dx}, {self.pacman.dy})")
+            print(f"[DEBUG] Ghost 0 pos: ({self.ghosts[0].x}, {self.ghosts[0].y}) dir: ({self.ghosts[0].dx}, {self.ghosts[0].dy})")
         
         # Update Pac-Man
         self.pacman.update(self.maze)
@@ -470,7 +477,7 @@ class PacManGame(App):
     def reset_positions(self):
         """Reset Pac-Man and ghosts to spawn."""
         self.pacman.x = 64
-        self.pacman.y = 96
+        self.pacman.y = 112
         self.pacman.dx = 0
         self.pacman.dy = 0
         self.pacman.next_dx = 0
@@ -495,19 +502,27 @@ class PacManGame(App):
     
     def render(self, matrix):
         """Draw game."""
+        # Debug: log once
+        if not hasattr(self, '_render_logged'):
+            print(f"[DEBUG] First render - Pac-Man at ({self.pacman.x}, {self.pacman.y})")
+            self._render_logged = True
+        
         # Black background
         matrix.clear()
         
         if self.death_animation > 0:
             self.render_death_animation(matrix)
+            self.dirty = False
             return
         
         if self.game_over:
             self.render_game_over(matrix)
+            self.dirty = False
             return
         
         if self.won:
             self.render_won(matrix)
+            self.dirty = False
             return
         
         # Draw maze
@@ -517,7 +532,7 @@ class PacManGame(App):
         for col, row in self.maze.dots:
             x = col * self.maze.grid_size + self.maze.grid_size // 2
             y = row * self.maze.grid_size + self.maze.grid_size // 2
-            matrix.pixel(x, y, (255, 200, 150))
+            matrix.set_pixel(x, y, (255, 200, 150))
         
         # Draw power pellets (blinking)
         if self.game_time % 30 < 15:
@@ -537,6 +552,8 @@ class PacManGame(App):
         
         # Draw HUD
         self.render_hud(matrix)
+        
+        self.dirty = False  # Clear dirty flag after rendering
     
     def render_maze(self, matrix):
         """Draw maze walls."""
@@ -559,15 +576,15 @@ class PacManGame(App):
         
         # Draw eye (direction-dependent)
         if self.pacman.dx > 0:  # Right
-            matrix.pixel(x + 1, y - 1, (0, 0, 0))
+            matrix.set_pixel(x + 1, y - 1, (0, 0, 0))
         elif self.pacman.dx < 0:  # Left
-            matrix.pixel(x - 1, y - 1, (0, 0, 0))
+            matrix.set_pixel(x - 1, y - 1, (0, 0, 0))
         elif self.pacman.dy > 0:  # Down
-            matrix.pixel(x, y + 1, (0, 0, 0))
+            matrix.set_pixel(x, y + 1, (0, 0, 0))
         elif self.pacman.dy < 0:  # Up
-            matrix.pixel(x, y - 1, (0, 0, 0))
+            matrix.set_pixel(x, y - 1, (0, 0, 0))
         else:
-            matrix.pixel(x + 1, y - 1, (0, 0, 0))
+            matrix.set_pixel(x + 1, y - 1, (0, 0, 0))
     
     def render_ghost(self, matrix, ghost, color):
         """Draw a ghost."""
@@ -578,22 +595,22 @@ class PacManGame(App):
         matrix.circle(x, y, r, color, fill=True)
         
         # Wavy bottom (simplified)
-        matrix.pixel(x - 2, y + r, color)
-        matrix.pixel(x, y + r + 1, color)
-        matrix.pixel(x + 2, y + r, color)
+        matrix.set_pixel(x - 2, y + r, color)
+        matrix.set_pixel(x, y + r + 1, color)
+        matrix.set_pixel(x + 2, y + r, color)
         
         # Eyes
         if ghost.mode == "frightened":
             # Scared eyes (just white dots)
-            matrix.pixel(x - 1, y - 1, (255, 255, 255))
-            matrix.pixel(x + 1, y - 1, (255, 255, 255))
+            matrix.set_pixel(x - 1, y - 1, (255, 255, 255))
+            matrix.set_pixel(x + 1, y - 1, (255, 255, 255))
         else:
             # Normal eyes (white with pupils)
-            matrix.pixel(x - 1, y - 1, (255, 255, 255))
-            matrix.pixel(x + 1, y - 1, (255, 255, 255))
+            matrix.set_pixel(x - 1, y - 1, (255, 255, 255))
+            matrix.set_pixel(x + 1, y - 1, (255, 255, 255))
             # Pupils look toward Pac-Man (simplified - just black dots)
-            matrix.pixel(x - 1, y, (0, 0, 0))
-            matrix.pixel(x + 1, y, (0, 0, 0))
+            matrix.set_pixel(x - 1, y, (0, 0, 0))
+            matrix.set_pixel(x + 1, y, (0, 0, 0))
     
     def render_hud(self, matrix):
         """Draw score and lives."""
@@ -617,7 +634,7 @@ class PacManGame(App):
         for col, row in self.maze.dots:
             x = col * self.maze.grid_size + self.maze.grid_size // 2
             y = row * self.maze.grid_size + self.maze.grid_size // 2
-            matrix.pixel(x, y, (255, 200, 150))
+            matrix.set_pixel(x, y, (255, 200, 150))
         
         # Pac-Man shrinks
         progress = 1.0 - (self.death_animation / 60.0)
