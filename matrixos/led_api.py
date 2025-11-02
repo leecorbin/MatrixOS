@@ -3,9 +3,9 @@ High-level API for LED matrix display.
 Simple interface for drawing graphics and text.
 """
 
-from src.display import Display, TerminalRenderer
-from src.graphics import *
-from src.font import Font, default_font
+from matrixos.display import Display, TerminalRenderer
+from matrixos.graphics import *
+from matrixos.font import Font, default_font
 from typing import Tuple, Union, Optional
 
 

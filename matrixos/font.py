@@ -4,7 +4,7 @@ ZX Spectrum-style font system for LED matrix display.
 """
 
 from typing import Tuple, Union, Optional, Dict
-from src.display import Display
+from matrixos.display import Display
 
 
 # Type alias for color
