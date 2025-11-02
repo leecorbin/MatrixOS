@@ -9,6 +9,7 @@ import json
 import importlib.util
 from pathlib import Path
 from matrixos import layout  # Import layout helpers
+from matrixos.input import InputEvent  # For key constants
 
 
 # Legacy 8-color palette (for backward compatibility)
@@ -356,5 +357,5 @@ class Launcher:
                         # Redraw after returning from app
                         needs_redraw = True
 
-                elif event.key == 'BACK' or event.key == 'QUIT':  # ESC or Q
+                elif event.key == InputEvent.HOME or event.key == InputEvent.QUIT:  # ESC or Q
                     running = False

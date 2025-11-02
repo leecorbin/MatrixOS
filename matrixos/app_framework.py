@@ -6,6 +6,7 @@ Provides OS-level app lifecycle management, event handling, and multitasking.
 
 import time
 from matrixos import async_tasks
+from matrixos.input import InputEvent
 
 
 class App:
