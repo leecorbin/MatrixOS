@@ -310,7 +310,7 @@ def show_keyboard(matrix, input_handler, prompt: str = "Enter text:",
         matrix.display()
         
         # Handle input
-        event = input_handler.get_input(timeout=0.1)
+        event = input_handler.get_key(timeout=0.1)
         if event:
             keyboard.handle_input(event)
     
