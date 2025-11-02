@@ -30,8 +30,9 @@ def boot(project_root=None):
     print("\nControls:")
     print("  Arrow Keys - Navigate")
     print("  Enter      - Launch app")
+    print("  Backspace  - Go back")
+    print("  ESC        - Exit to launcher")
     print("  Tab        - Help")
-    print("  ESC/Q      - Exit")
     print("\n" + "="*64 + "\n")
 
     # Get project root directory

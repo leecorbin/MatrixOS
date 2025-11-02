@@ -209,7 +209,6 @@ class OSContext:
         help_items.append(("UNIVERSAL:", "", True))  # Section header
         help_items.append(("ESC", "EXIT APP", False))
         help_items.append(("BKSP", "GO BACK", False))
-        help_items.append(("Q", "QUIT OS", False))
         help_items.append(("TAB", "THIS HELP", False))
 
         # Calculate visible range based on scroll
@@ -274,10 +273,7 @@ class OSContext:
             # Handle system-level input events
             event = self.input.get_key(timeout=0.001)
             if event:
-                if event.key == 'QUIT':  # Q = quit entire OS
-                    self.running = False
-                    continue
-                elif event.key == 'HELP':  # TAB = toggle help
+                if event.key == 'HELP':  # TAB = toggle help
                     self.showing_help = not self.showing_help
                     if not self.showing_help:
                         self.help_scroll = 0

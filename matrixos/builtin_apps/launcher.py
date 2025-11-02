@@ -357,5 +357,5 @@ class Launcher:
                         # Redraw after returning from app
                         needs_redraw = True
 
-                elif event.key == InputEvent.HOME or event.key == InputEvent.QUIT:  # ESC or Q
+                elif event.key == InputEvent.HOME:  # ESC to exit launcher
                     running = False
