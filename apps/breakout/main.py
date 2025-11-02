@@ -26,7 +26,7 @@ class BreakoutGame(App):
     """Classic Breakout game."""
     
     def __init__(self):
-        super().__init__()
+        super().__init__("Breakout")
         # Paddle
         self.paddle_width = 20
         self.paddle_height = 4

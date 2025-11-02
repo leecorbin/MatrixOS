@@ -49,7 +49,7 @@ class TetrisGame(App):
     """Classic Tetris game."""
     
     def __init__(self):
-        super().__init__()
+        super().__init__("Tetris")
         # Playfield (10 wide x 20 tall)
         self.field_width = 10
         self.field_height = 20

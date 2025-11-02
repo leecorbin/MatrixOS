@@ -26,7 +26,7 @@ class SnakeGame(App):
     """Classic Snake game."""
     
     def __init__(self):
-        super().__init__()
+        super().__init__("Snake")
         self.snake = []
         self.food = None
         self.direction = (1, 0)  # Start moving right
