@@ -571,9 +571,24 @@ def test_complex_interaction():
 
 ---
 
+## Complete Testing Guide
+
+For comprehensive testing documentation including:
+- Advanced techniques (sprite tracking, visual regression)
+- Common test patterns (movement, collision, animation)
+- Best practices and troubleshooting
+- Performance testing
+- Log inspection strategies
+
+See **[TESTING.md](TESTING.md)** - Complete MatrixOS Testing Guide
+
+---
+
 ## See Also
 
-- [FRAMEWORK.md](FRAMEWORK.md) - Architecture and design
+- [TESTING.md](TESTING.md) - Complete testing framework guide
+- [TESTING_FRAMEWORK_SUMMARY.md](TESTING_FRAMEWORK_SUMMARY.md) - Testing overview
+- [FRAMEWORK.md](FRAMEWORK.md) - App architecture and design
 - [APP_STRUCTURE.md](APP_STRUCTURE.md) - App file organization
 - [LOGGING.md](LOGGING.md) - Logging system guide
 - [ICON_FORMATS.md](ICON_FORMATS.md) - Creating app icons

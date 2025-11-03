@@ -66,7 +66,7 @@ python3 start.py
 python3 start.py --width 128 --height 128
 ```
 
-Navigate with arrow keys, press **Enter** to launch apps, **Space** to jump/fire in games, **ESC** to go back.
+Navigate with arrow keys, press **Enter** to launch apps, **Space** for jump/fire/action in games, **ESC** to go back, **TAB** for help.
 
 ## ✨ Key Features
 
@@ -280,19 +280,31 @@ matrixos/
 │   ├── graphics.py        # Drawing primitives
 │   ├── input.py           # Keyboard/gamepad input system
 │   ├── layout.py          # Responsive layout helpers
-│   └── config.py          # Configuration and arg parsing
+│   ├── config.py          # Configuration and arg parsing
+│   └── testing/           # Testing framework
+│       ├── display_adapter.py  # Headless display for tests
+│       ├── input_simulator.py  # Programmatic input injection
+│       ├── assertions.py       # Rich assertion library
+│       └── runner.py           # Test runner with log integration
 ├── apps/                  # User applications
 │   ├── timer/             # Countdown timer app
 │   ├── weather/           # Weather display app
 │   └── demos/             # Graphics demos
+├── tests/                 # Automated test suite
+│   ├── smoke_test.py      # Quick sanity checks
+│   ├── advanced_test.py   # Comprehensive feature tests
+│   └── test_log_integration.py  # Log inspection tests
 ├── docs/                  # Documentation
+│   ├── API_REFERENCE.md   # Complete API documentation
 │   ├── HARDWARE.md        # Hardware build guide
 │   ├── FRAMEWORK.md       # App development guide
+│   ├── LOGGING.md         # Logging system guide
 │   ├── VISION.md          # Project roadmap
-│   ├── SPECTRUM_EMULATOR.md  # ZX Spectrum emulator plan
-│   └── APP_STRUCTURE.md   # App folder structure
+│   ├── SPECTRUM_EMULATOR.md     # ZX Spectrum emulator plan
+│   ├── APP_STRUCTURE.md         # App folder structure
+│   └── TESTING_FRAMEWORK_SUMMARY.md  # Testing overview
 ├── start.py               # MatrixOS launcher
-├── requirements.txt       # Python dependencies (none!)
+├── requirements.txt       # Python dependencies (Pillow only)
 ├── README.md              # This file
 └── LICENSE                # MIT License
 ```
@@ -306,6 +318,8 @@ matrixos/
 - [x] Help overlay (TAB key)
 - [x] Background processing
 - [x] Terminal emulator (128×128)
+- [x] Comprehensive logging system
+- [x] **Automated testing framework** ✨
 - [ ] Async background tasks (threading)
 - [ ] Move launcher to builtin_apps/
 - [ ] Responsive layout system
@@ -356,18 +370,72 @@ python3 start.py --width 128 --height 128
 **Controls:**
 - **Arrow Keys** - Navigate
 - **Enter** - Select / OK
+- **Space** - Action (jump/fire in games)
 - **ESC** - Back / Exit app
 - **Backspace** - Alternative back
 - **Q** - Quit MatrixOS
 - **TAB** - Help overlay
 
+## 🧪 Testing
+
+MatrixOS includes a **comprehensive testing framework** for automated app testing:
+
+```python
+from matrixos.testing import TestRunner
+
+def test_my_app():
+    # Load app in headless mode
+    runner = TestRunner("examples.platformer.main", max_duration=10.0)
+    runner.wait(1.0)
+    
+    # Verify rendering
+    assert runner.display.render_count >= 30, "App should render"
+    
+    # Find player sprite
+    player = runner.find_sprite((0, 150, 255), tolerance=10)
+    assert player is not None, "Player should be visible"
+    
+    # Test input
+    initial_x = player[0]
+    runner.inject_repeat(' ', count=10)  # Jump 10 times
+    runner.wait(2.0)
+    
+    # Verify movement
+    new_player = runner.find_sprite((0, 150, 255), tolerance=10)
+    assert new_player[0] != initial_x, "Player should move"
+    
+    # Check logs
+    runner.assert_no_errors_logged()
+```
+
+**Features:**
+- ✅ Headless execution (no terminal output)
+- ✅ Display buffer inspection (pixel-level access)
+- ✅ Sprite tracking and collision detection  
+- ✅ Input simulation (frame-perfect timing)
+- ✅ Log integration (error detection, debugging)
+- ✅ Visual regression testing (snapshots)
+- ✅ Pure Python (no numpy required)
+
+**Run tests:**
+```bash
+python3 tests/smoke_test.py        # Quick sanity check
+python3 tests/advanced_test.py     # Full feature tests
+python3 tests/test_log_integration.py  # Log testing
+```
+
+See **[docs/API_REFERENCE.md](docs/API_REFERENCE.md)** for complete testing API documentation.
+
 ## 📚 Documentation
 
+- **[docs/API_REFERENCE.md](docs/API_REFERENCE.md)** - Complete API reference (display, input, testing)
 - **[docs/HARDWARE.md](docs/HARDWARE.md)** - Complete hardware build guide
 - **[docs/FRAMEWORK.md](docs/FRAMEWORK.md)** - App development guide  
 - **[docs/APP_STRUCTURE.md](docs/APP_STRUCTURE.md)** - App folder structure
+- **[docs/LOGGING.md](docs/LOGGING.md)** - Logging system documentation
 - **[docs/VISION.md](docs/VISION.md)** - Project vision and roadmap
 - **[docs/SPECTRUM_EMULATOR.md](docs/SPECTRUM_EMULATOR.md)** - ZX Spectrum emulator plan
+- **[docs/TESTING_FRAMEWORK_SUMMARY.md](docs/TESTING_FRAMEWORK_SUMMARY.md)** - Testing framework overview
 
 ## 🤝 Contributing
 
@@ -375,6 +443,7 @@ Contributions welcome! This project is in active development.
 
 **Areas where help is needed:**
 - App development (create cool apps!)
+- Testing (write tests for existing apps)
 - Hardware testing (when LED support lands)
 - Documentation improvements
 - Bug reports and feature requests
@@ -406,6 +475,7 @@ MatrixOS is inspired by:
 - **Picture frame computers** - Computing meets art
 - **Retro gaming** - Classic games on LED matrices
 - **Embedded systems** - Tiny computers doing big things
+- **Modern dev practices** - Testing, logging, and clean architecture with a retro aesthetic
 
 ## 📜 License
 
@@ -425,74 +495,3 @@ MIT License - See [LICENSE](LICENSE) file for details.
 Want to discuss the project? Open an issue or discussion on GitHub!
 
 🎮🖼️✨
-ASCII fallback mode is available if your terminal doesn't support Unicode.
-
-## 📦 Project Structure
-
-```
-pi-matrix/
-├── src/
-│   ├── display.py       # Core framebuffer & renderer
-│   ├── graphics.py      # Drawing primitives
-│   ├── font.py          # ZX Spectrum font system
-│   ├── input.py         # Input abstraction (Matrix OS)
-│   └── led_api.py       # High-level user API
-├── examples/
-│   ├── start_here.py    # Interactive demo launcher (START HERE!)
-│   ├── game_*.py        # Interactive games (Snake, Breakout, Tetris)
-│   ├── interactive_app_example.py  # Drawing app
-│   ├── *.py             # Other demos
-│   └── README.md        # Demo documentation
-├── LICENSE              # MIT License
-├── README.md            # This file
-└── requirements.txt     # Dependencies (none!)
-```
-
-## 🎯 Design Goals
-
-- ✅ **Lightweight**: Zero dependencies, pure Python
-- ✅ **Pi Zero compatible**: Efficient for low-power devices
-- ✅ **Fast iteration**: Develop and test on any machine
-- ✅ **Hardware-ready**: Architecture designed for easy LED matrix integration
-- ✅ **Retro aesthetic**: ZX Spectrum-inspired design
-- ✅ **Well documented**: Comprehensive examples and API docs
-
-## 💡 Use Cases
-
-- **LED Matrix Development**: Build displays on your laptop, test on Pi
-- **Retro Computing**: ZX Spectrum-style graphics and text
-- **Data Visualization**: Real-time charts and graphs
-- **Game Displays**: Score screens, menus, animations
-- **Status Displays**: System monitors, dashboards
-- **Art Projects**: Generative art, visual effects
-
-## 🤝 Contributing
-
-Contributions welcome! Whether it's:
-- Bug fixes
-- New drawing primitives
-- More demos
-- Hardware integration (especially LED matrix renderers!)
-- Documentation improvements
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Inspired by the ZX Spectrum and ZX-81 computers
-- Font based on ZX Spectrum character set
-- Built for the LED matrix hobbyist community
-
-## 📬 Contact
-
-- **Author**: Lee Corbin
-- **Email**: code@corbin.uk
-- **GitHub**: [@leecorbin](https://github.com/leecorbin)
-
----
-
-**Made with ❤️ for LED matrices and retro computing**
-
-*Develop anywhere, deploy to Pi!* 🚀
