@@ -1,0 +1,7 @@
+{
+  "name": "Emoji Demo",
+  "entry_point": "main.py",
+  "description": "EmojiSprite demonstration with movement, animation, and collision",
+  "author": "MatrixOS",
+  "version": "1.0.0"
+}

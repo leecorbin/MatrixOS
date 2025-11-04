@@ -347,14 +347,6 @@ class PacManGame(App):
             return [("R", "Restart"), ("ESC", "Exit")]
         return [("Arrows", "Move"), ("R", "Restart")]
     
-    def on_activate(self):
-        """App activated."""
-        pass
-    
-    def on_deactivate(self):
-        """App deactivated."""
-        pass
-    
     def on_event(self, event):
         """Handle input."""
         if self.game_over or self.won:

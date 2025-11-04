@@ -298,6 +298,201 @@ class TestRunner:
         """Assert display is/isn't animating."""
         self.assertions.is_animating(expected)
     
+    # === Sprite Framework Integration ===
+    
+    def get_app_attribute(self, attr_name: str) -> Any:
+        """
+        Get attribute from the running app.
+        
+        Useful for accessing sprites stored in app:
+            player = runner.get_app_attribute("player")
+            enemies = runner.get_app_attribute("enemies")
+        
+        Args:
+            attr_name: Name of attribute to get
+            
+        Returns:
+            Attribute value or None if not found
+        """
+        if not self.app:
+            return None
+        return getattr(self.app, attr_name, None)
+    
+    def get_sprite(self, attr_name: str):
+        """
+        Get a Sprite from the app by attribute name.
+        
+        Example:
+            player = runner.get_sprite("player")
+            assert player.x == 64
+        
+        Args:
+            attr_name: Name of sprite attribute in app
+            
+        Returns:
+            Sprite instance or None
+        """
+        sprite = self.get_app_attribute(attr_name)
+        if sprite and hasattr(sprite, 'x') and hasattr(sprite, 'y'):
+            return sprite
+        return None
+    
+    def get_sprite_group(self, attr_name: str):
+        """
+        Get a SpriteGroup from the app by attribute name.
+        
+        Example:
+            enemies = runner.get_sprite_group("enemies")
+            assert len(enemies) == 4
+        
+        Args:
+            attr_name: Name of sprite group attribute in app
+            
+        Returns:
+            SpriteGroup instance or None
+        """
+        group = self.get_app_attribute(attr_name)
+        if group and hasattr(group, 'sprites'):
+            return group
+        return None
+    
+    def get_tilemap(self, attr_name: str = "tilemap"):
+        """
+        Get a TileMap from the app by attribute name.
+        
+        Example:
+            tilemap = runner.get_tilemap()
+            assert tilemap.get_tile(5, 5) == 1
+        
+        Args:
+            attr_name: Name of tilemap attribute in app (default: "tilemap")
+            
+        Returns:
+            TileMap instance or None
+        """
+        tilemap = self.get_app_attribute(attr_name)
+        if tilemap and hasattr(tilemap, 'tiles') and hasattr(tilemap, 'tile_size'):
+            return tilemap
+        return None
+    
+    def assert_sprite_exists(self, attr_name: str):
+        """
+        Assert that a sprite attribute exists in the app.
+        
+        Example:
+            runner.assert_sprite_exists("player")
+        """
+        sprite = self.get_sprite(attr_name)
+        assert sprite is not None, f"Sprite '{attr_name}' not found in app"
+    
+    def assert_sprite_at(self, attr_name: str, x: float, y: float, tolerance: float = 1.0):
+        """
+        Assert sprite is at expected position (within tolerance).
+        
+        Example:
+            runner.assert_sprite_at("player", x=64, y=64, tolerance=2.0)
+        
+        Args:
+            attr_name: Name of sprite attribute
+            x: Expected x position
+            y: Expected y position
+            tolerance: Maximum allowed distance from expected position
+        """
+        sprite = self.get_sprite(attr_name)
+        assert sprite is not None, f"Sprite '{attr_name}' not found"
+        
+        from matrixos.sprites import distance
+        dist = distance(sprite.x, sprite.y, x, y)
+        assert dist <= tolerance, \
+            f"Sprite '{attr_name}' at ({sprite.x:.1f}, {sprite.y:.1f}), expected ({x}, {y}), distance={dist:.1f}"
+    
+    def assert_sprite_in_bounds(self, attr_name: str, 
+                                x1: int = 0, y1: int = 0, 
+                                x2: Optional[int] = None, y2: Optional[int] = None):
+        """
+        Assert sprite is within bounds.
+        
+        Example:
+            runner.assert_sprite_in_bounds("player", x1=0, y1=0, x2=128, y2=128)
+        
+        Args:
+            attr_name: Name of sprite attribute
+            x1, y1: Top-left bounds
+            x2, y2: Bottom-right bounds (defaults to display size)
+        """
+        sprite = self.get_sprite(attr_name)
+        assert sprite is not None, f"Sprite '{attr_name}' not found"
+        
+        if x2 is None:
+            x2 = self.display.width
+        if y2 is None:
+            y2 = self.display.height
+        
+        assert x1 <= sprite.x < x2, \
+            f"Sprite '{attr_name}' x={sprite.x:.1f} out of bounds [{x1}, {x2})"
+        assert y1 <= sprite.y < y2, \
+            f"Sprite '{attr_name}' y={sprite.y:.1f} out of bounds [{y1}, {y2})"
+    
+    def assert_sprite_not_in_wall(self, sprite_attr: str, tilemap_attr: str = "tilemap",
+                                  wall_tile_id: int = 1):
+        """
+        Assert sprite is not colliding with wall tiles.
+        
+        Example:
+            runner.assert_sprite_not_in_wall("player", "tilemap", wall_tile_id=1)
+        
+        Args:
+            sprite_attr: Name of sprite attribute
+            tilemap_attr: Name of tilemap attribute
+            wall_tile_id: Tile ID that represents walls
+        """
+        sprite = self.get_sprite(sprite_attr)
+        assert sprite is not None, f"Sprite '{sprite_attr}' not found"
+        
+        tilemap = self.get_tilemap(tilemap_attr)
+        assert tilemap is not None, f"TileMap '{tilemap_attr}' not found"
+        
+        collides = tilemap.sprite_collides_with_tile(sprite, wall_tile_id)
+        assert not collides, \
+            f"Sprite '{sprite_attr}' at ({sprite.x:.1f}, {sprite.y:.1f}) collides with wall tiles"
+    
+    def assert_sprites_not_overlapping(self, sprite1_attr: str, sprite2_attr: str):
+        """
+        Assert two sprites are not colliding.
+        
+        Example:
+            runner.assert_sprites_not_overlapping("player", "enemy")
+        
+        Args:
+            sprite1_attr: Name of first sprite attribute
+            sprite2_attr: Name of second sprite attribute
+        """
+        sprite1 = self.get_sprite(sprite1_attr)
+        sprite2 = self.get_sprite(sprite2_attr)
+        
+        assert sprite1 is not None, f"Sprite '{sprite1_attr}' not found"
+        assert sprite2 is not None, f"Sprite '{sprite2_attr}' not found"
+        
+        collides = sprite1.collides_with(sprite2)
+        assert not collides, \
+            f"Sprites '{sprite1_attr}' and '{sprite2_attr}' are overlapping"
+    
+    def assert_sprite_group_size(self, attr_name: str, expected_size: int):
+        """
+        Assert sprite group has expected number of sprites.
+        
+        Example:
+            runner.assert_sprite_group_size("enemies", 4)
+        """
+        group = self.get_sprite_group(attr_name)
+        assert group is not None, f"SpriteGroup '{attr_name}' not found"
+        
+        actual = len(group)
+        assert actual == expected_size, \
+            f"SpriteGroup '{attr_name}' has {actual} sprites, expected {expected_size}"
+    
+    # === Logging Integration ===
+    
     def assert_render_count_min(self, min_count: int):
         """Assert minimum number of renders."""
         self.assertions.render_count_min(min_count)
