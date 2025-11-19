@@ -4,5 +4,9 @@
 # Install with: pip install Pillow
 Pillow>=10.0.0
 
+# Optional: For macOS window driver (better development experience)
+# If not installed, falls back to terminal display
+# pygame>=2.0.0
+
 # Optional: For faster emoji rendering (if you modify emoji system)
 # requests>=2.31.0
