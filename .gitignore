@@ -55,3 +55,21 @@ apps/*
 settings/*
 !settings/.gitkeep
 
+# TypeScript / Node.js
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# PiZXel User Data (gitignored - enables upgrades via git pull)
+data/
+
+# JSSpeccy3 Emulator (GPL - not distributed with MIT code)
+jsspeccy3/
+
+# Build artifacts
+*.js.map
+*.d.ts.map
+
