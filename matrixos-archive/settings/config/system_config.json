@@ -1,0 +1,37 @@
+{
+  "_comment": "MatrixOS System Configuration Template - Copied to settings/config/ on first run",
+  "version": "2.0",
+  "system": {
+    "emoji_download_enabled": true,
+    "emoji_cache_dir": "settings/cache"
+  },
+  "display": {
+    "driver": "auto",
+    "driver_override": null,
+    "default_width": 256,
+    "default_height": 192,
+    "default_brightness": 80,
+    "scale": 4,
+    "pixel_gap": 0,
+    "_comment_driver": "Driver selection: 'auto' = auto-detect best for platform, 'terminal' = ANSI terminal, 'macos_window' = Pygame window (macOS), 'hdmi' = HDMI output (Pi), 'led_matrix' = LED matrix HAT (Pi)",
+    "_comment_override": "Set driver_override to force specific driver: 'terminal', 'macos_window', etc. Leave null for auto-detection",
+    "_comment_scale": "Pixel scale factor for window drivers (4 = 256x192 becomes 1024x768 window)"
+  },
+  "input_devices": [],
+  "bluetooth": {
+    "auto_discover_on_boot": true,
+    "pairing_timeout": 30,
+    "scan_interval": 5,
+    "_comment": "Bluetooth device discovery settings"
+  },
+  "boot": {
+    "show_logo": true,
+    "logo_duration": 2.0,
+    "skip_device_setup": false,
+    "_comment": "Boot sequence settings"
+  },
+  "apps": {
+    "auto_install_dependencies": false,
+    "allow_background_apps": true
+  }
+}

@@ -1,0 +1,42 @@
+
+============================================================
+Session started: 2025-11-18 16:28:12
+============================================================
+[16:28:12.419] INFO: Tetris initialized for 256×192 with Spectrum aesthetic!
+[16:28:12.419] INFO: Game started!
+[16:29:17.050] INFO: Game over! Final score: 0, Lines: 0
+
+============================================================
+Session started: 2025-11-18 16:43:41
+============================================================
+[16:43:41.013] INFO: Tetris initialized for 256×192 with Spectrum aesthetic!
+[16:43:41.013] INFO: Game started!
+[16:43:44.243] DEBUG: Hard drop: 9 cells, +18 points
+[16:43:47.916] DEBUG: Hard drop: 12 cells, +24 points
+[16:43:50.099] DEBUG: Hard drop: 14 cells, +28 points
+[16:43:52.907] DEBUG: Hard drop: 12 cells, +24 points
+[16:43:55.616] DEBUG: Hard drop: 13 cells, +26 points
+[16:43:58.056] DEBUG: Hard drop: 14 cells, +28 points
+[16:43:59.953] INFO: Cleared 1 line(s), +100 points
+[16:43:59.954] DEBUG: Hard drop: 14 cells, +28 points
+[16:44:03.426] DEBUG: Hard drop: 11 cells, +22 points
+
+============================================================
+Session started: 2025-11-21 12:57:22
+============================================================
+[12:57:22.004] INFO: Tetris initialized for 256×192 with Spectrum aesthetic!
+[12:57:22.004] INFO: Game started!
+
+============================================================
+Session started: 2025-11-21 12:57:28
+============================================================
+[12:57:28.135] INFO: Tetris initialized for 256×192 with Spectrum aesthetic!
+[12:57:28.135] INFO: Game started!
+[12:57:32.637] DEBUG: Hard drop: 8 cells, +16 points
+[12:57:35.027] DEBUG: Hard drop: 12 cells, +24 points
+[12:57:37.204] DEBUG: Hard drop: 13 cells, +26 points
+[12:57:39.028] DEBUG: Hard drop: 13 cells, +26 points
+[12:57:41.133] DEBUG: Hard drop: 12 cells, +24 points
+[12:57:43.140] DEBUG: Hard drop: 12 cells, +24 points
+[12:57:46.760] INFO: Cleared 2 line(s), +300 points
+[12:57:46.760] DEBUG: Hard drop: 11 cells, +22 points

@@ -13,6 +13,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Core Philosophy:** "Look like 1983, work like 2025"
 
 **Key Decisions:**
+
 - Language: TypeScript (strict mode) with Node.js runtime
 - Display: node-canvas + HTTP server for development, terminal fallback always available
 - Structure: `/pizxel/` (git-tracked OS) + `/data/` (gitignored user data)
@@ -113,6 +114,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Decision:** Migrate to TypeScript with Node.js runtime
 
 **Rationale:**
+
 - JSSpeccy3 is JavaScript - native integration without subprocess overhead
 - Existing work dashboard already Node.js-based
 - Better type safety than Python for complex apps
@@ -120,6 +122,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 - Easier browser-based development tools
 
 **Trade-offs:**
+
 - More boilerplate than Python (types, interfaces)
 - Lose Pygame (but gain node-canvas + browser)
 - Team needs TypeScript familiarity
@@ -129,6 +132,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Decision:** Use node-canvas to render display buffer, serve via HTTP, browser shows output
 
 **Rationale:**
+
 - Pure JavaScript - no C++ compilation needed on Mac
 - Browser-based display is bonus feature (remote Pi access!)
 - Lightweight - just canvas rendering + WebSocket
@@ -136,6 +140,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 - Avoids SDL2/pygame native dependencies
 
 **Trade-offs:**
+
 - Slightly more latency than native window
 - Requires browser open during development
 - But simpler setup, no platform-specific builds
@@ -145,12 +150,14 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Decision:** Port MatrixOS device driver system to TypeScript
 
 **Rationale:**
+
 - Current architecture is excellent - priority system, auto-detection, platform awareness
 - Clean abstraction: DisplayDriver/InputDriver base classes
 - DeviceManager coordinates lifecycle
 - Easy to add new hardware (e.g., future HDMI driver)
 
 **What to Port:**
+
 - Base classes: `DisplayDriver`, `InputDriver`
 - Priority system: drivers declare priority, manager selects highest available
 - Lifecycle: `initialize()`, `shutdown()`, `isAvailable()`
@@ -161,12 +168,14 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Decision:** Dynamic download to `/data/all-users/cache/jsspeccy3/`, intercept frame buffer via WebSocket/polling
 
 **Rationale:**
+
 - GPL code never distributed with MIT core
 - User downloads on first run via `scripts/setup-jsspeccy3.sh`
 - Frame buffer interception without modifying JSSpeccy3 code
 - Legal isolation, user consent
 
 **Technical Approach:**
+
 - JSSpeccy3 runs in separate process (or Web Worker)
 - Intercept canvas.putImageData() calls
 - Copy frame buffer to PiZXel display buffer
@@ -181,6 +190,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Set up TypeScript project, implement device driver base classes
 
 **Tasks:**
+
 1. ✅ Create `/new-architecture/IMPLEMENTATION_PLAN.md` (this document)
 2. ✅ Update `.gitignore` (add jsspeccy3/, node_modules/, dist/, data/)
 3. ✅ Commit current Python state with tag `v2.0-final-python`
@@ -248,13 +258,14 @@ This document outlines the complete migration plan from Python-based MatrixOS to
     - `pizxel/drivers/display/terminal-display.ts` (ANSI fallback)
     - `pizxel/drivers/input/keyboard-input.ts` (stdin)
 11. Create `pizxel/index.ts` entry point:
+
     ```typescript
-    import { DeviceManager } from './core/device-manager';
-    
+    import { DeviceManager } from "./core/device-manager";
+
     async function main() {
       const deviceManager = new DeviceManager();
       await deviceManager.initialize();
-      console.log('PiZXel initialized');
+      console.log("PiZXel initialized");
       // Test pattern
       const display = deviceManager.getDisplay();
       for (let y = 0; y < 192; y++) {
@@ -264,11 +275,12 @@ This document outlines the complete migration plan from Python-based MatrixOS to
       }
       display.show();
     }
-    
+
     main();
     ```
 
 **Success Criteria:**
+
 - `npm run build` compiles without errors
 - `npm start` shows test pattern in terminal
 - DeviceManager selects TerminalDisplay automatically
@@ -281,7 +293,9 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Port app lifecycle, event loop, dirty flag pattern
 
 **Tasks:**
+
 1. Implement `pizxel/types/app.d.ts`:
+
    ```typescript
    export interface App {
      name: string;
@@ -292,13 +306,14 @@ This document outlines the complete migration plan from Python-based MatrixOS to
      render(matrix: DisplayBuffer): void;
      onBackgroundTick?(): void;
    }
-   
+
    export interface InputEvent {
      key: string;
-     type: 'keydown' | 'keyup';
+     type: "keydown" | "keyup";
      timestamp: number;
    }
    ```
+
 2. Implement `pizxel/core/app-framework.ts`:
    - Event loop (~60fps)
    - Dirty flag tracking
@@ -317,14 +332,22 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 6. Test with minimal app:
    ```typescript
    class TestApp implements App {
-     name = 'Test App';
+     name = "Test App";
      private x = 0;
-     
-     onActivate() { console.log('Activated'); }
-     onDeactivate() { console.log('Deactivated'); }
-     onUpdate(dt: number) { this.x = (this.x + dt * 50) % 256; }
+
+     onActivate() {
+       console.log("Activated");
+     }
+     onDeactivate() {
+       console.log("Deactivated");
+     }
+     onUpdate(dt: number) {
+       this.x = (this.x + dt * 50) % 256;
+     }
      onEvent(event: InputEvent): boolean {
-       if (event.key === 'q') { process.exit(0); }
+       if (event.key === "q") {
+         process.exit(0);
+       }
        return false;
      }
      render(matrix: DisplayBuffer) {
@@ -335,6 +358,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
    ```
 
 **Success Criteria:**
+
 - App event loop runs at ~60fps
 - Dirty flag prevents unnecessary renders
 - Input events route to active app
@@ -348,6 +372,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Implement browser-based display driver for Mac development
 
 **Tasks:**
+
 1. Implement `pizxel/drivers/display/canvas-http.ts`:
    - node-canvas renders 256×192 buffer to PNG
    - Express serves HTTP server on `http://localhost:3000`
@@ -357,27 +382,37 @@ This document outlines the complete migration plan from Python-based MatrixOS to
    ```html
    <!DOCTYPE html>
    <html>
-   <head>
-     <title>PiZXel Display</title>
-     <style>
-       body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
-       canvas { border: 2px solid #333; image-rendering: pixelated; }
-     </style>
-   </head>
-   <body>
-     <canvas id="display" width="256" height="192"></canvas>
-     <script>
-       const canvas = document.getElementById('display');
-       const ctx = canvas.getContext('2d');
-       const ws = new WebSocket('ws://localhost:3000');
-       
-       ws.onmessage = (event) => {
-         const img = new Image();
-         img.onload = () => ctx.drawImage(img, 0, 0);
-         img.src = 'data:image/png;base64,' + event.data;
-       };
-     </script>
-   </body>
+     <head>
+       <title>PiZXel Display</title>
+       <style>
+         body {
+           margin: 0;
+           background: #000;
+           display: flex;
+           justify-content: center;
+           align-items: center;
+           height: 100vh;
+         }
+         canvas {
+           border: 2px solid #333;
+           image-rendering: pixelated;
+         }
+       </style>
+     </head>
+     <body>
+       <canvas id="display" width="256" height="192"></canvas>
+       <script>
+         const canvas = document.getElementById("display");
+         const ctx = canvas.getContext("2d");
+         const ws = new WebSocket("ws://localhost:3000");
+
+         ws.onmessage = (event) => {
+           const img = new Image();
+           img.onload = () => ctx.drawImage(img, 0, 0);
+           img.src = "data:image/png;base64," + event.data;
+         };
+       </script>
+     </body>
    </html>
    ```
 3. Implement `pizxel/drivers/input/http-input.ts`:
@@ -388,6 +423,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
    - TerminalDisplay: priority 50 (always available fallback)
 
 **Success Criteria:**
+
 - `npm start` opens browser automatically
 - Display shows in browser window at `http://localhost:3000`
 - Keyboard input works from browser
@@ -401,6 +437,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Port launcher and clock apps to validate framework
 
 **Tasks:**
+
 1. Port launcher app:
    - `pizxel/apps/launcher/index.ts`
    - Icon grid (5×3 layout)
@@ -425,6 +462,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
    - Register with app framework
 
 **Success Criteria:**
+
 - Launcher shows icon grid with clock app
 - Emoji icons render without gridlines
 - Arrow keys navigate grid
@@ -439,6 +477,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Integrate ZX Spectrum emulator with frame buffer interception
 
 **Tasks:**
+
 1. Create download script:
    - `scripts/setup-jsspeccy3.sh`
    - Git clone jsspeccy3 to `/data/all-users/cache/jsspeccy3/`
@@ -460,6 +499,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
    - `PRINT "HELLO WORLD"` displays on matrix
 
 **Success Criteria:**
+
 - `scripts/setup-jsspeccy3.sh` downloads emulator successfully
 - JSSpeccy3 app launches from launcher
 - ZX Spectrum BASIC prompt visible on display
@@ -468,6 +508,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 - No modifications to GPL code required (or minimal, isolated)
 
 **Deferred to Later:**
+
 - `.tap` file loading (focus on ROM first)
 - Cassette tape audio
 - Joystick emulation
@@ -480,6 +521,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Implement Raspberry Pi LED matrix and GPIO input drivers
 
 **Tasks:**
+
 1. Implement `pizxel/drivers/display/led-matrix.ts`:
    - Wrapper for `rpi-rgb-led-matrix` npm package
    - Priority 100 (highest - use on Pi if available)
@@ -505,6 +547,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
    - Restart PiZXel service
 
 **Success Criteria:**
+
 - PiZXel runs on Raspberry Pi
 - LED matrix shows display (auto-detected)
 - Physical buttons work as input
@@ -519,6 +562,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Port all remaining MatrixOS apps to PiZXel
 
 **Apps to Port:**
+
 1. **Frogger** (`pizxel/apps/frogger/`)
    - Icon: `{"emoji": "🐸"}`
    - Port from `matrixos-archive/examples/frogger/main.py`
@@ -554,6 +598,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
     - System settings (brightness, volume, Wi-Fi, etc.)
 
 **Success Criteria:**
+
 - All apps launch from launcher
 - All apps render correctly
 - All apps respond to input
@@ -567,6 +612,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Implement automated testing and polish UX
 
 **Tasks:**
+
 1. Set up testing framework:
    - Install Jest: `npm install --save-dev jest @types/jest ts-jest`
    - Configure `jest.config.js`
@@ -597,6 +643,7 @@ This document outlines the complete migration plan from Python-based MatrixOS to
    - `docs/HARDWARE.md` (Pi setup, LED matrix wiring)
 
 **Success Criteria:**
+
 - `npm test` runs all tests and passes
 - Test coverage >80% for core modules
 - Apps transition smoothly
@@ -610,11 +657,13 @@ This document outlines the complete migration plan from Python-based MatrixOS to
 **Goal:** Implement multi-user support and work dashboard integration (DEFERRED)
 
 **Notes:**
+
 - This phase is lower priority
 - Focus on single-user experience first
 - Revisit after core system is stable
 
 **Future Tasks:**
+
 1. Multi-user support:
    - User switching from settings
    - Per-user app directories
@@ -653,11 +702,11 @@ buffer[y][x] = [255, 0, 0]; // Red pixel at (x, y)
 
 ```typescript
 interface InputEvent {
-  key: string;           // 'ArrowUp', 'Enter', ' ' (space), 'Escape', etc.
-  type: 'keydown' | 'keyup';
-  timestamp: number;     // Date.now()
-  repeat?: boolean;      // True if key held down
-  source?: string;       // 'keyboard', 'gpio', 'websocket'
+  key: string; // 'ArrowUp', 'Enter', ' ' (space), 'Escape', etc.
+  type: "keydown" | "keyup";
+  timestamp: number; // Date.now()
+  repeat?: boolean; // True if key held down
+  source?: string; // 'keyboard', 'gpio', 'websocket'
 }
 
 // Standard keys (compatible with MatrixOS):
@@ -677,11 +726,11 @@ interface InputEvent {
 abstract class DisplayDriver {
   abstract priority: number;
   abstract name: string;
-  
+
   abstract initialize(): Promise<void>;
   abstract shutdown(): Promise<void>;
   abstract isAvailable(): Promise<boolean>;
-  
+
   abstract getWidth(): number;
   abstract getHeight(): number;
   abstract setPixel(x: number, y: number, color: RGB): void;
@@ -692,11 +741,11 @@ abstract class DisplayDriver {
 abstract class InputDriver {
   abstract priority: number;
   abstract name: string;
-  
+
   abstract initialize(): Promise<void>;
   abstract shutdown(): Promise<void>;
   abstract isAvailable(): Promise<boolean>;
-  
+
   abstract onEvent(callback: (event: InputEvent) => void): void;
 }
 ```
@@ -706,14 +755,14 @@ abstract class InputDriver {
 ```typescript
 interface App {
   name: string;
-  
+
   // Lifecycle
   onActivate(): void;
   onDeactivate(): void;
   onUpdate(deltaTime: number): void;
   onEvent(event: InputEvent): boolean;
   render(matrix: DisplayBuffer): void;
-  
+
   // Optional
   onBackgroundTick?(): void;
   onSaveState?(): any;
@@ -776,41 +825,49 @@ All tests passing."
 ## Success Criteria Summary
 
 **Phase 0 Complete When:**
+
 - ✅ TypeScript project compiles
 - ✅ Terminal display shows test pattern
 - ✅ DeviceManager selects driver automatically
 
 **Phase 1 Complete When:**
+
 - ✅ App event loop runs at 60fps
 - ✅ Test app shows moving rectangle
 - ✅ Logger writes to log files
 
 **Phase 2 Complete When:**
+
 - ✅ Browser displays PiZXel output
 - ✅ Keyboard input works from browser
 - ✅ Test app works in browser
 
 **Phase 3 Complete When:**
+
 - ✅ Launcher shows icon grid
 - ✅ Clock app displays time
 - ✅ Navigation between apps works
 
 **Phase 4 Complete When:**
+
 - ✅ ZX Spectrum BASIC prompt displays
 - ✅ Keyboard types in emulator
 - ✅ Frame buffer intercept works
 
 **Phase 5 Complete When:**
+
 - ✅ LED matrix displays on Raspberry Pi
 - ✅ GPIO buttons work as input
 - ✅ Hardware auto-detection works
 
 **Phase 6 Complete When:**
+
 - ✅ All 11+ apps ported and functional
 - ✅ Games are playable
 - ✅ Settings app works
 
 **Phase 7 Complete When:**
+
 - ✅ All tests passing (>80% coverage)
 - ✅ Documentation complete
 - ✅ UX polished
@@ -824,6 +881,7 @@ All tests passing."
 **Concern:** Might require modifying GPL code, licensing complications
 
 **Mitigation:**
+
 - Start with polling approach (no JSSpeccy3 modifications)
 - If too slow, explore WebSocket bridge (separate process)
 - Worst case: fork JSSpeccy3, maintain separately in user space
@@ -834,6 +892,7 @@ All tests passing."
 **Concern:** Canvas rendering might be slow on Pi Zero
 
 **Mitigation:**
+
 - Optimize: Only render dirty regions
 - Fallback: Use terminal display if canvas too slow
 - Consider: Hardware acceleration via OpenGL/GLES bindings
@@ -844,6 +903,7 @@ All tests passing."
 **Concern:** Polling GPIO might miss button presses
 
 **Mitigation:**
+
 - Use interrupt-based GPIO (if supported by library)
 - Debounce logic to prevent double-presses
 - Test extensively with physical hardware
@@ -878,6 +938,6 @@ All tests passing."
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: November 22, 2025*  
-*Author: AI Assistant (Claude Sonnet 4.5) + User Collaboration*
+_Document Version: 1.0_  
+_Last Updated: November 22, 2025_  
+_Author: AI Assistant (Claude Sonnet 4.5) + User Collaboration_

@@ -1,0 +1,112 @@
+
+============================================================
+Session started: 2025-11-07 16:06:33
+============================================================
+[16:06:33.511] INFO: run() function called
+[16:06:33.511] INFO: Game instance created
+[16:06:33.511] INFO: App registered
+[16:06:33.511] INFO: on_activate() called
+[16:06:33.511] INFO: on_activate() completed
+[16:06:33.512] INFO: Switched to app - entering event loop
+[16:06:35.027] INFO: Event loop exited
+
+============================================================
+Session started: 2025-11-18 13:23:51
+============================================================
+
+============================================================
+Session started: 2025-11-18 13:41:56
+============================================================
+
+============================================================
+Session started: 2025-11-18 13:51:05
+============================================================
+[13:51:05.078] INFO: Game starting - prepare for invasion!
+
+============================================================
+Session started: 2025-11-18 13:56:23
+============================================================
+[13:56:23.361] INFO: Game starting - prepare for invasion!
+
+============================================================
+Session started: 2025-11-18 16:43:32
+============================================================
+[16:43:32.262] INFO: run() function called
+[16:43:32.263] INFO: Game instance created
+[16:43:32.263] INFO: App registered
+[16:43:32.264] INFO: Game starting - prepare for invasion!
+[16:43:32.266] INFO: Switched to app - entering event loop
+[16:43:37.451] INFO: Event loop exited
+
+============================================================
+Session started: 2025-11-21 12:55:53
+============================================================
+[12:55:53.918] INFO: run() function called
+[12:55:53.918] INFO: Game instance created
+[12:55:53.918] INFO: App registered
+[12:55:53.918] INFO: Game starting - prepare for invasion!
+[12:55:53.919] INFO: Switched to app - entering event loop
+[12:55:55.716] DEBUG: Player fires!
+[12:55:56.545] DEBUG: Player fires!
+[12:55:57.425] DEBUG: Player fires!
+[12:55:58.082] DEBUG: Player fires!
+[12:55:58.893] DEBUG: Player fires!
+[12:55:59.497] DEBUG: Player fires!
+[12:56:00.187] DEBUG: Player fires!
+[12:56:00.584] DEBUG: Player fires!
+[12:56:00.809] DEBUG: Player fires!
+[12:56:01.223] DEBUG: Player fires!
+[12:56:01.448] DEBUG: Player fires!
+[12:56:01.637] DEBUG: Player fires!
+[12:56:02.052] DEBUG: Player fires!
+[12:56:02.725] DEBUG: Player fires!
+[12:56:02.999] DEBUG: Player fires!
+[12:56:03.879] DEBUG: Player fires!
+[12:56:04.104] DEBUG: Player fires!
+[12:56:04.345] DEBUG: Player fires!
+[12:56:04.812] DEBUG: Player fires!
+[12:56:05.001] DEBUG: Player fires!
+[12:56:07.020] INFO: Event loop exited
+
+============================================================
+Session started: 2025-11-21 12:56:12
+============================================================
+[12:56:12.110] INFO: run() function called
+[12:56:12.110] INFO: Game instance created
+[12:56:12.110] INFO: App registered
+[12:56:12.110] INFO: Game starting - prepare for invasion!
+[12:56:12.111] INFO: Switched to app - entering event loop
+[12:56:16.101] INFO: Event loop exited
+
+============================================================
+Session started: 2025-11-21 12:56:33
+============================================================
+[12:56:33.644] INFO: run() function called
+[12:56:33.644] INFO: Game instance created
+[12:56:33.644] INFO: App registered
+[12:56:33.644] INFO: Game starting - prepare for invasion!
+[12:56:33.645] INFO: Switched to app - entering event loop
+[12:56:36.432] DEBUG: Player fires!
+[12:56:36.673] DEBUG: Player fires!
+[12:56:37.516] DEBUG: Player fires!
+[12:56:37.723] DEBUG: Player fires!
+[12:56:37.895] DEBUG: Player fires!
+[12:56:38.067] DEBUG: Player fires!
+[12:56:38.240] DEBUG: Player fires!
+[12:56:38.430] DEBUG: Player fires!
+[12:56:38.585] DEBUG: Player fires!
+[12:56:40.361] DEBUG: Player fires!
+[12:56:40.585] DEBUG: Player fires!
+[12:56:40.757] DEBUG: Player fires!
+[12:56:40.964] DEBUG: Player fires!
+[12:56:41.360] DEBUG: Player fires!
+[12:56:41.809] DEBUG: Player fires!
+[12:56:42.309] DEBUG: Player fires!
+[12:56:42.568] DEBUG: Player fires!
+[12:56:42.757] DEBUG: Player fires!
+[12:56:42.963] DEBUG: Player fires!
+[12:56:43.204] DEBUG: Player fires!
+[12:56:43.859] DEBUG: Player fires!
+[12:56:44.083] DEBUG: Player fires!
+[12:56:44.273] DEBUG: Player fires!
+[12:56:44.566] INFO: Event loop exited
