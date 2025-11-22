@@ -11,6 +11,7 @@ import { DeviceManager } from "./device-manager";
 
 export class AppFramework {
   private activeApp: App | null = null;
+  private launcherApp: App | null = null; // Reference to launcher
   private deviceManager: DeviceManager;
   private displayBuffer: DisplayBuffer;
 
@@ -25,6 +26,13 @@ export class AppFramework {
       deviceManager.getDisplay().getWidth(),
       deviceManager.getDisplay().getHeight()
     );
+  }
+
+  /**
+   * Set the launcher app (used for ESC key)
+   */
+  setLauncher(launcher: App): void {
+    this.launcherApp = launcher;
   }
 
   /**
@@ -144,9 +152,20 @@ export class AppFramework {
     // If app didn't handle, check for system keys
     if (!handled) {
       if (event.key === "Escape") {
-        console.log("\nExiting...");
-        this.stop();
-        this.deviceManager.shutdown().then(() => process.exit(0));
+        // If we're in launcher, exit; otherwise return to launcher
+        if (this.activeApp === this.launcherApp) {
+          console.log("\nExiting...");
+          this.stop();
+          this.deviceManager.shutdown().then(() => process.exit(0));
+        } else if (this.launcherApp) {
+          console.log("\nReturning to launcher...");
+          this.switchToApp(this.launcherApp);
+        } else {
+          // No launcher set, just exit
+          console.log("\nExiting...");
+          this.stop();
+          this.deviceManager.shutdown().then(() => process.exit(0));
+        }
       }
     }
   }
