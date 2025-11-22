@@ -6,6 +6,7 @@
  */
 
 import { RGB } from "../types";
+import { defaultFont } from "./font";
 
 export class DisplayBuffer {
   private buffer: RGB[][];
@@ -192,7 +193,7 @@ export class DisplayBuffer {
   }
 
   /**
-   * Draw text (will be implemented after font is ported)
+   * Draw text using ZX Spectrum font
    */
   text(
     text: string,
@@ -202,16 +203,50 @@ export class DisplayBuffer {
     bgColor?: RGB,
     scale: number = 1
   ): void {
-    // TODO: Implement after font system is ported
-    console.log(`text() not yet implemented: "${text}" at (${x}, ${y})`);
+    let cursorX = x;
+
+    for (const char of text) {
+      const bitmap = defaultFont.getChar(char);
+
+      if (!bitmap) {
+        // Skip unknown characters
+        cursorX += defaultFont.charWidth * scale;
+        continue;
+      }
+
+      // Render character bitmap
+      for (let row = 0; row < 8; row++) {
+        const rowBits = bitmap[row];
+
+        for (let col = 0; col < 8; col++) {
+          // Check if bit is set (1 = foreground, 0 = background)
+          const bitSet = (rowBits >> (7 - col)) & 1;
+
+          // Draw scaled pixel(s)
+          for (let sy = 0; sy < scale; sy++) {
+            for (let sx = 0; sx < scale; sx++) {
+              const px = cursorX + col * scale + sx;
+              const py = y + row * scale + sy;
+
+              if (bitSet) {
+                this.setPixel(px, py, color);
+              } else if (bgColor) {
+                this.setPixel(px, py, bgColor);
+              }
+            }
+          }
+        }
+      }
+
+      cursorX += defaultFont.charWidth * scale;
+    }
   }
 
   /**
    * Draw centered text
    */
   centeredText(text: string, y: number, color: RGB, bgColor?: RGB): void {
-    // Assume 8-pixel wide characters
-    const textWidth = text.length * 8;
+    const textWidth = text.length * defaultFont.charWidth;
     const x = Math.floor((this.width - textWidth) / 2);
     this.text(text, x, y, color, bgColor);
   }
