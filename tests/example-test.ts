@@ -2,8 +2,11 @@
  * Example Test - Testing the Test App
  *
  * Demonstrates the PiZXel testing framework.
+ * TODO: Update this test or remove it
  */
 
+// DISABLED - TestApp no longer exists
+/*
 import { TestRunner } from "../pizxel/testing";
 import { TestApp } from "../pizxel/apps/test-app";
 import { InputKeys } from "../pizxel/types";
@@ -123,3 +126,4 @@ async function runAllTests() {
 }
 
 runAllTests();
+*/

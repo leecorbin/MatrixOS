@@ -4,9 +4,9 @@
  * Shows current time with ZX Spectrum aesthetics.
  */
 
-import { App, InputEvent, InputKeys } from "../types/index";
-import { DisplayBuffer } from "../core/display-buffer";
-import { HelpModal } from "../ui";
+import { App, InputEvent, InputKeys } from "../../types/index";
+import { DisplayBuffer } from "../../core/display-buffer";
+import { HelpModal } from "../../ui";
 
 export class ClockApp implements App {
   readonly name = "Clock";

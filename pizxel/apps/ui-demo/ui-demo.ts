@@ -4,8 +4,8 @@
  * Demonstrates all UI controls: TextInput, Toggle, Slider, ProgressBar, and layouts.
  */
 
-import { App, InputEvent } from "../types";
-import { DisplayBuffer } from "../core/display-buffer";
+import { App, InputEvent } from "../../types";
+import { DisplayBuffer } from "../../core/display-buffer";
 import {
   Panel,
   Label,
@@ -17,10 +17,11 @@ import {
   Spacer,
   HelpModal,
   HelpItem,
-} from "../ui";
+} from "../../ui";
 
 export class UIDemo implements App {
   name: string = "UI Demo";
+  private dirty: boolean = true;
   private panel: Panel;
   private nameInput: TextInput;
   private soundToggle: Toggle;
@@ -142,6 +143,7 @@ export class UIDemo implements App {
 
   onActivate(): void {
     console.log("UIDemo activated");
+    this.dirty = true;
   }
 
   onDeactivate(): void {
@@ -159,6 +161,12 @@ export class UIDemo implements App {
 
     // Update text input cursor blink
     if (this.nameInput.focused) {
+      this.dirty = true;
+    }
+
+    // Always dirty for progress bar animation
+    this.dirty = true;
+    if (this.nameInput.focused) {
       this.nameInput.update(deltaTime);
     }
   }
@@ -167,6 +175,7 @@ export class UIDemo implements App {
     // Check for help modal
     if (event.key === "Tab") {
       this.showHelp();
+      this.dirty = true;
       return true;
     }
 
@@ -176,6 +185,7 @@ export class UIDemo implements App {
       if (handled && !this.helpModal.visible) {
         this.helpModal = null;
       }
+      this.dirty = true;
       return handled;
     }
 
@@ -183,6 +193,7 @@ export class UIDemo implements App {
     if (event.key === "ArrowDown") {
       this.focusIndex = (this.focusIndex + 1) % this.focusableWidgets.length;
       this.updateFocus();
+      this.dirty = true;
       return true;
     }
 
@@ -191,12 +202,17 @@ export class UIDemo implements App {
         (this.focusIndex - 1 + this.focusableWidgets.length) %
         this.focusableWidgets.length;
       this.updateFocus();
+      this.dirty = true;
       return true;
     }
 
     // Pass event to focused widget
     const focused = this.focusableWidgets[this.focusIndex];
-    return focused.handleEvent(event);
+    const handled = focused.handleEvent(event);
+    if (handled) {
+      this.dirty = true;
+    }
+    return handled;
   }
 
   private showHelp(): void {
@@ -223,6 +239,9 @@ export class UIDemo implements App {
     if (this.helpModal) {
       this.helpModal.render(display);
     }
+
+    // Clear dirty flag
+    this.dirty = false;
   }
 }
 

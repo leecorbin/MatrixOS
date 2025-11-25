@@ -34,4 +34,28 @@ export class Container extends Widget {
       matrix.rect(pos.x, pos.y, this.width, this.height, this.bgColor, true);
     }
   }
+
+  /**
+   * Override render to add clipping for children
+   */
+  render(matrix: DisplayBuffer): void {
+    if (!this.visible) {
+      return;
+    }
+
+    // Render self
+    this.renderSelf(matrix);
+
+    // Push clip region for children
+    const pos = this.getAbsolutePosition();
+    matrix.pushClipRegion(pos.x, pos.y, this.width, this.height);
+
+    // Render children (they will be clipped)
+    for (const child of this.children) {
+      child.render(matrix);
+    }
+
+    // Restore clip region
+    matrix.popClipRegion();
+  }
 }

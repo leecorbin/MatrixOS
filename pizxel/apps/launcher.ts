@@ -8,7 +8,7 @@
 import { App, InputEvent, InputKeys } from "../types/index";
 import { DisplayBuffer } from "../core/display-buffer";
 import { AppFramework } from "../core/app-framework";
-import { HelpModal } from "../ui";
+import { HelpModal, GamesPopup } from "../ui";
 import { getEmojiLoader } from "../lib/emoji-loader";
 
 interface AppIcon {
@@ -16,6 +16,8 @@ interface AppIcon {
   emoji: string;
   color: [number, number, number];
   app?: App; // Reference to app instance
+  category?: string; // App category (e.g., "game")
+  isFolder?: boolean; // True for special folders like "Games"
 }
 
 export class LauncherApp implements App {
@@ -23,7 +25,12 @@ export class LauncherApp implements App {
 
   private selectedIndex: number = 0;
   private apps: AppIcon[] = [];
+  private gameApps: AppIcon[] = []; // Game apps (for popup)
   private appFramework: AppFramework;
+  private lastMinute: number = -1; // Track minute changes for clock
+
+  // Games popup
+  private gamesPopup: GamesPopup;
 
   // Help modal
   private helpModal = HelpModal.create([
@@ -36,10 +43,10 @@ export class LauncherApp implements App {
   // Layout configuration for 256×192
   private readonly cols = 4; // 4 columns of icons
   private readonly rows = 3; // 3 rows of icons
-  private readonly iconSize = 48; // 48×48 pixel cells (larger for better text)
-  private readonly iconSpacing = 12;
-  private readonly startX = 20; // Left margin
-  private readonly startY = 40; // Top margin (leave room for title)
+  private readonly iconSize = 48; // 48×48 pixel cells
+  private readonly iconSpacing = 4; // Minimal spacing for 3 rows
+  private readonly startX = 16; // Left margin
+  private readonly startY = 18; // Compact header (16px + 2px spacing)
 
   // ZX Spectrum color palette
   private readonly bgColor: [number, number, number] = [0, 0, 0]; // Black
@@ -54,21 +61,70 @@ export class LauncherApp implements App {
 
     // Apps will be registered dynamically via registerApp()
     this.apps = [];
+    this.gameApps = [];
+
+    // Create games popup (256×192 display size)
+    this.gamesPopup = new GamesPopup(256, 192);
   }
 
-  registerApp(
+  async registerApp(
     name: string,
     emoji: string,
     color: [number, number, number],
-    app: App
-  ): void {
-    // Add or update app in launcher (insert at beginning for priority)
-    const existingIndex = this.apps.findIndex((a) => a.name === name);
-    if (existingIndex >= 0) {
-      this.apps[existingIndex] = { name, emoji, color, app };
-    } else {
-      this.apps.unshift({ name, emoji, color, app });
+    app: App,
+    category?: string
+  ): Promise<void> {
+    const appIcon: AppIcon = { name, emoji, color, app, category };
+
+    // Preload emoji into cache and wait for it
+    try {
+      await getEmojiLoader().getEmojiImage(emoji);
+      console.log(`[Launcher] Preloaded emoji ${emoji} for ${name}`);
+    } catch (err) {
+      console.warn(`[Launcher] Failed to preload emoji ${emoji}:`, err);
     }
+
+    // Games go ONLY in the Games folder, not in main launcher
+    if (category === "game") {
+      const existingIndex = this.gameApps.findIndex((a) => a.name === name);
+      if (existingIndex >= 0) {
+        this.gameApps[existingIndex] = appIcon;
+      } else {
+        this.gameApps.push(appIcon);
+      }
+    } else {
+      // Non-game apps go in main launcher
+      const existingIndex = this.apps.findIndex((a) => a.name === name);
+      if (existingIndex >= 0) {
+        this.apps[existingIndex] = appIcon;
+      } else {
+        this.apps.unshift(appIcon);
+      }
+    }
+
+    // Update games popup if we have games
+    if (this.gameApps.length > 0) {
+      this.gamesPopup.setGames(
+        this.gameApps.map((g) => ({
+          name: g.name,
+          emoji: g.emoji,
+          color: g.color,
+          app: g.app!,
+        }))
+      );
+
+      // Add "Games" folder if not already present
+      const hasFolderIcon = this.apps.some((a) => a.isFolder);
+      if (!hasFolderIcon) {
+        this.apps.unshift({
+          name: "Games",
+          emoji: "🎮",
+          color: [255, 100, 0] as [number, number, number],
+          isFolder: true,
+        });
+      }
+    }
+
     this.dirty = true;
   }
 
@@ -91,7 +147,13 @@ export class LauncherApp implements App {
   }
 
   onUpdate(deltaTime: number): void {
-    // Static display, no animation needed
+    // Update time display only when minute changes
+    const now = new Date();
+    const currentMinute = now.getMinutes();
+    if (currentMinute !== this.lastMinute) {
+      this.lastMinute = currentMinute;
+      this.dirty = true;
+    }
   }
 
   onEvent(event: InputEvent): boolean {
@@ -104,6 +166,25 @@ export class LauncherApp implements App {
       this.helpModal.toggle();
       this.dirty = true;
       return true;
+    }
+
+    // Games popup intercepts events when visible
+    if (this.gamesPopup.isVisible()) {
+      const handled = this.gamesPopup.handleEvent(event);
+
+      if (handled) {
+        // Check if user selected a game to launch
+        if (event.key === InputKeys.OK || event.key === " ") {
+          const selectedGame = this.gamesPopup.getSelectedGame();
+          if (selectedGame && selectedGame.app) {
+            console.log(`Launching game: ${selectedGame.name}`);
+            this.gamesPopup.hide();
+            this.appFramework.switchToApp(selectedGame.app);
+          }
+        }
+        this.dirty = true;
+        return true;
+      }
     }
 
     // Modal intercepts events when visible
@@ -153,15 +234,22 @@ export class LauncherApp implements App {
 
       case InputKeys.OK:
       case " ":
-        // Launch selected app
+        // Launch selected app or open folder
         const selected = this.apps[this.selectedIndex];
-        if (selected.app) {
+
+        if (selected.isFolder) {
+          // Open Games popup
+          console.log("Opening Games folder");
+          this.gamesPopup.show();
+          handled = true;
+        } else if (selected.app) {
           console.log(`Launching app: ${selected.name}`);
           this.appFramework.switchToApp(selected.app);
+          handled = true;
         } else {
           console.log(`App not yet implemented: ${selected.name}`);
+          handled = true;
         }
-        handled = true;
         break;
     }
 
@@ -191,6 +279,9 @@ export class LauncherApp implements App {
       this.drawIcon(matrix, this.apps[i], x, y, i === this.selectedIndex);
     }
 
+    // Render games popup on top if visible
+    this.gamesPopup.render(matrix);
+
     // Render help modal on top if visible
     this.helpModal.render(matrix);
 
@@ -198,19 +289,21 @@ export class LauncherApp implements App {
   }
 
   private drawTitleBar(matrix: DisplayBuffer): void {
-    // ZX Spectrum style title bar
-    const titleText = "PiZXel OS";
-    const titleWidth = titleText.length * 8;
-    const titleX = Math.floor((256 - titleWidth) / 2);
+    // Dark background bar for header (same as icon backgrounds)
+    matrix.rect(0, 0, 256, 16, [30, 30, 30], true);
 
-    // Draw border line
-    matrix.line(0, 0, 255, 0, this.borderColor);
-    matrix.line(0, 1, 255, 1, this.borderColor);
-    matrix.line(0, 30, 255, 30, this.borderColor);
-    matrix.line(0, 31, 255, 31, this.borderColor);
+    // Compact header: 'pizxel' on left, time on right
+    matrix.text("pizxel", 4, 4, this.textColor);
 
-    // Draw title text
-    matrix.text(titleText, titleX, 10, this.textColor);
+    // Show current time on right
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    const timeText = `${hours}:${minutes}`;
+    const timeWidth = timeText.length * 8;
+    matrix.text(timeText, 256 - timeWidth - 4, 4, this.textColor);
+
+    // No divider line - header background provides visual separation
   }
 
   private drawIcon(
@@ -220,28 +313,6 @@ export class LauncherApp implements App {
     y: number,
     selected: boolean
   ): void {
-    // Draw selection border only for selected icon (ZX Spectrum bright colors)
-    if (selected) {
-      // Double border effect for selection
-      matrix.rect(
-        x - 2,
-        y - 2,
-        this.iconSize + 4,
-        this.iconSize + 4,
-        this.selectedColor,
-        false
-      );
-      matrix.rect(
-        x - 1,
-        y - 1,
-        this.iconSize + 2,
-        this.iconSize + 2,
-        this.selectedColor,
-        false
-      );
-    }
-    // No border for unselected icons
-
     // Draw icon background (subtle)
     const bgShade: [number, number, number] = [16, 16, 32];
     matrix.rect(
@@ -252,6 +323,27 @@ export class LauncherApp implements App {
       bgShade,
       true
     );
+
+    // Draw selection border INSIDE for selected icon (ZX Spectrum bright colors)
+    if (selected) {
+      // Double border effect for selection - INSIDE the icon
+      matrix.rect(
+        x + 2,
+        y + 2,
+        this.iconSize - 4,
+        this.iconSize - 4,
+        this.selectedColor,
+        false
+      );
+      matrix.rect(
+        x + 3,
+        y + 3,
+        this.iconSize - 6,
+        this.iconSize - 6,
+        this.selectedColor,
+        false
+      );
+    }
 
     // Draw emoji icon (centered in cell)
     const emojiSize = 32; // Emoji render size
@@ -270,6 +362,9 @@ export class LauncherApp implements App {
 
     // If emoji not rendered (not in cache), draw fallback
     if (!rendered) {
+      console.warn(
+        `[Launcher] Failed to render emoji ${icon.emoji} for ${icon.name}`
+      );
       matrix.rect(
         Math.floor(iconX),
         Math.floor(iconY),

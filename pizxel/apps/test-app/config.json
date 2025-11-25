@@ -1,0 +1,9 @@
+{
+  "name": "Test",
+  "version": "1.0.0",
+  "description": "UI component test app",
+  "author": "PiZXel Team",
+  "icon": "🎮",
+  "main": "test-app.ts",
+  "color": [0, 255, 0]
+}

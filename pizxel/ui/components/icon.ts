@@ -39,8 +39,9 @@ export class Icon extends Widget {
   }
 
   protected renderSelf(display: DisplayBuffer): void {
-    const globalX = this.x;
-    const globalY = this.y;
+    const pos = this.getAbsolutePosition();
+    const globalX = pos.x;
+    const globalY = pos.y;
 
     // Fill background
     display.rect(globalX, globalY, this.width, this.height, this.bgColor, true);

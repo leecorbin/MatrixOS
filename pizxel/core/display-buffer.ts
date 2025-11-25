@@ -12,6 +12,20 @@ export class DisplayBuffer {
   private buffer: RGB[][];
   private width: number;
   private height: number;
+  private clipStack: Array<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }> = [];
+  private currentClip: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null = null;
+  private transformStack: Array<{ x: number; y: number }> = [];
+  private currentTransform: { x: number; y: number } = { x: 0, y: 0 };
 
   constructor(width: number = 256, height: number = 192) {
     this.width = width;
@@ -42,12 +56,125 @@ export class DisplayBuffer {
    * Set a single pixel
    */
   setPixel(x: number, y: number, color: RGB): void {
+    // Apply transform
+    x += this.currentTransform.x;
+    y += this.currentTransform.y;
+
+    // Check clip region first
+    if (this.currentClip) {
+      if (
+        x < this.currentClip.x ||
+        x >= this.currentClip.x + this.currentClip.width ||
+        y < this.currentClip.y ||
+        y >= this.currentClip.y + this.currentClip.height
+      ) {
+        return; // Outside clip region
+      }
+    }
+
     // Bounds checking
     if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
       return;
     }
 
     this.buffer[y][x] = color;
+  }
+
+  /**
+   * Push a clip region onto the stack
+   */
+  pushClipRegion(x: number, y: number, width: number, height: number): void {
+    // If there's a current clip, intersect with it
+    if (this.currentClip) {
+      const x1 = Math.max(x, this.currentClip.x);
+      const y1 = Math.max(y, this.currentClip.y);
+      const x2 = Math.min(
+        x + width,
+        this.currentClip.x + this.currentClip.width
+      );
+      const y2 = Math.min(
+        y + height,
+        this.currentClip.y + this.currentClip.height
+      );
+
+      this.clipStack.push(this.currentClip);
+      this.currentClip = {
+        x: x1,
+        y: y1,
+        width: Math.max(0, x2 - x1),
+        height: Math.max(0, y2 - y1),
+      };
+    } else {
+      // No current clip, use the new one
+      this.clipStack.push({
+        x: 0,
+        y: 0,
+        width: this.width,
+        height: this.height,
+      });
+      this.currentClip = { x, y, width, height };
+    }
+  }
+
+  /**
+   * Pop a clip region from the stack
+   */
+  popClipRegion(): void {
+    if (this.clipStack.length > 0) {
+      this.currentClip = this.clipStack.pop()!;
+      // If we're back to the root clip, clear it
+      if (
+        this.currentClip.x === 0 &&
+        this.currentClip.y === 0 &&
+        this.currentClip.width === this.width &&
+        this.currentClip.height === this.height
+      ) {
+        this.currentClip = null;
+      }
+    } else {
+      this.currentClip = null;
+    }
+  }
+
+  /**
+   * Get current clip region (for testing)
+   */
+  getClipRegion(): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null {
+    return this.currentClip;
+  }
+
+  /**
+   * Push a coordinate transform (for scrolling)
+   */
+  pushTransform(x: number, y: number): void {
+    this.transformStack.push({ ...this.currentTransform });
+    this.currentTransform = {
+      x: this.currentTransform.x + x,
+      y: this.currentTransform.y + y,
+    };
+  }
+
+  /**
+   * Pop the last coordinate transform
+   */
+  popTransform(): void {
+    if (this.transformStack.length > 0) {
+      this.currentTransform = this.transformStack.pop()!;
+    } else {
+      this.currentTransform = { x: 0, y: 0 };
+    }
+  }
+
+  /**
+   * Get current transform (for testing)
+   */
+  getTransform(): { x: number; y: number } {
+    return { ...this.currentTransform };
   }
 
   /**

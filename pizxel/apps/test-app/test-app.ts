@@ -8,9 +8,9 @@
  * - State management
  */
 
-import { App, InputEvent, InputKeys } from "../types/index";
-import { DisplayBuffer } from "../core/display-buffer";
-import { HelpModal } from "../ui";
+import { App, InputEvent, InputKeys } from "../../types/index";
+import { DisplayBuffer } from "../../core/display-buffer";
+import { HelpModal } from "../../ui";
 
 export class TestApp implements App {
   readonly name = "Test App";

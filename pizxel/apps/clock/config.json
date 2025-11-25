@@ -1,0 +1,9 @@
+{
+  "name": "Clock",
+  "version": "1.0.0",
+  "description": "Analog clock with date display",
+  "author": "PiZXel Team",
+  "icon": "⏰",
+  "main": "clock.ts",
+  "color": [255, 255, 0]
+}

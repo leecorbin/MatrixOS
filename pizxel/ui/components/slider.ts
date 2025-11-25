@@ -107,8 +107,9 @@ export class Slider extends Widget {
   }
 
   protected renderSelf(display: DisplayBuffer): void {
-    const globalX = this.x;
-    const globalY = this.y;
+    const pos = this.getAbsolutePosition();
+    const globalX = pos.x;
+    const globalY = pos.y;
 
     let currentY = globalY;
 

@@ -10,12 +10,20 @@
 
 import { DeviceManager } from "./core/device-manager";
 import { AppFramework } from "./core/app-framework";
+import { AppScanner } from "./core/app-scanner";
 import { TerminalDisplayDriver } from "./drivers/display/terminal-display";
 import { CanvasDisplayDriver } from "./drivers/display/canvas-display-driver";
 import { KeyboardInputDriver } from "./drivers/input/keyboard-input";
 import { LauncherApp } from "./apps/launcher";
-import { TestApp } from "./apps/test-app";
-import { ClockApp } from "./apps/clock";
+import { WebAudioDriver } from "./audio/web-audio-driver";
+import { Audio } from "./audio/audio";
+
+// Global audio instance (accessible to all apps)
+let globalAudio: Audio | null = null;
+
+export function getAudio(): Audio | null {
+  return globalAudio;
+}
 
 async function main() {
   // Check for canvas mode
@@ -29,6 +37,15 @@ async function main() {
 
   // Create device manager
   const deviceManager = new DeviceManager();
+
+  // Initialize audio driver
+  console.log("Initializing audio...");
+  const audioDriver = new WebAudioDriver();
+  await audioDriver.initialize();
+  globalAudio = new Audio(audioDriver);
+  console.log(
+    `Audio: ${audioDriver.isAvailable() ? "Available" : "Not available"}`
+  );
 
   // Register available drivers
   if (useCanvas) {
@@ -63,14 +80,28 @@ async function main() {
   // Create app framework with app registry
   const appFramework = new AppFramework(deviceManager);
 
-  // Create apps
-  const clockApp = new ClockApp();
-  const testApp = new TestApp();
-
-  // Create launcher and register apps
+  // Create launcher
   const launcher = new LauncherApp(appFramework);
-  launcher.registerApp("Clock", "⏰", [255, 255, 0], clockApp);
-  launcher.registerApp("Test", "🎮", [0, 255, 0], testApp);
+
+  // Scan and load apps
+  console.log("Scanning for apps...");
+  const scanner = new AppScanner();
+  const scannedApps = await scanner.scanAll();
+
+  // Register scanned apps with launcher
+  for (const app of scannedApps) {
+    const color = app.config.color || [255, 255, 255];
+    const category = app.config.category; // Get category from config
+    await launcher.registerApp(
+      app.config.name,
+      app.config.icon,
+      color as [number, number, number],
+      app.instance,
+      category
+    );
+  }
+
+  console.log(`Loaded ${scannedApps.length} app(s)`);
 
   // Set launcher for ESC key handling
   appFramework.setLauncher(launcher);

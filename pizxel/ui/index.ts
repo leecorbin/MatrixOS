@@ -20,6 +20,9 @@ export { Slider, SliderOptions } from "./components/slider";
 export { ProgressBar, ProgressBarOptions } from "./components/progress-bar";
 export { Icon, IconOptions } from "./components/icon";
 
+// Popups
+export { GamesPopup } from "./games-popup";
+
 // Layout
 export { VStack, VStackOptions } from "./layout/vstack";
 export { HStack, HStackOptions } from "./layout/hstack";

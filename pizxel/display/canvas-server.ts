@@ -84,6 +84,16 @@ export class CanvasServer {
         }
       });
 
+      // Handle paste events from browser
+      socket.on("paste", (data: { text: string }) => {
+        // Inject each character as a key event
+        if (this.keyCallback) {
+          for (const char of data.text) {
+            this.keyCallback(char);
+          }
+        }
+      });
+
       socket.on("disconnect", () => {
         this.clientCount--;
         console.log(
@@ -362,6 +372,16 @@ export class CanvasServer {
       
       // Send key to server
       socket.emit('keydown', { key: e.key });
+    });
+    
+    // Paste handling
+    document.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = e.clipboardData?.getData('text');
+      if (text) {
+        console.log('Pasting text:', text);
+        socket.emit('paste', { text });
+      }
     });
     
     // Focus canvas to receive keyboard events
