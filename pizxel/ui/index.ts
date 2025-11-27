@@ -19,6 +19,12 @@ export { Toggle, ToggleOptions } from "./components/toggle";
 export { Slider, SliderOptions } from "./components/slider";
 export { ProgressBar, ProgressBarOptions } from "./components/progress-bar";
 export { Icon, IconOptions } from "./components/icon";
+export {
+  LoadingSpinner,
+  LoadingSpinnerOptions,
+  SpinnerStyle,
+} from "./components/loading-spinner";
+export { TabView, TabViewOptions, Tab } from "./components/tab-view";
 
 // Popups
 export { GamesPopup } from "./games-popup";

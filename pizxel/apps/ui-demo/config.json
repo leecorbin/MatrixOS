@@ -1,9 +1,0 @@
-{
-  "name": "UI Demo",
-  "version": "1.0.0",
-  "description": "Demonstrates all UI controls and layouts",
-  "author": "PiZXel Team",
-  "icon": "📱",
-  "main": "ui-demo.ts",
-  "color": [255, 100, 200]
-}

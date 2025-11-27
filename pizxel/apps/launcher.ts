@@ -28,6 +28,9 @@ export class LauncherApp implements App {
   private gameApps: AppIcon[] = []; // Game apps (for popup)
   private appFramework: AppFramework;
   private lastMinute: number = -1; // Track minute changes for clock
+  private errorMessage: string | null = null;
+  private errorTimeout: NodeJS.Timeout | null = null;
+  private errorScrollOffset: number = 0; // Scroll offset for long error messages
 
   // Games popup
   private gamesPopup: GamesPopup;
@@ -40,13 +43,16 @@ export class LauncherApp implements App {
     { key: "ESC", action: "Exit PiZXel" },
   ]);
 
-  // Layout configuration for 256×192
+  // Layout configuration for 256×192 with top and bottom bars (16px each)
+  // Available space: 192 - 16 (top) - 16 (bottom) = 160px
+  // With 3 rows: 160 / 3 = 53.3px per row
   private readonly cols = 4; // 4 columns of icons
-  private readonly rows = 3; // 3 rows of icons
-  private readonly iconSize = 48; // 48×48 pixel cells
-  private readonly iconSpacing = 4; // Minimal spacing for 3 rows
+  private readonly rows = 3; // 3 full rows
+  private readonly iconSize = 48; // 48×48 icon cells
+  private readonly rowSpacing = 4; // Vertical spacing between rows
+  private readonly colSpacing = 8; // Horizontal spacing between columns
   private readonly startX = 16; // Left margin
-  private readonly startY = 18; // Compact header (16px + 2px spacing)
+  private readonly startY = 20; // Below top bar (16px + 4px spacing)
 
   // ZX Spectrum color palette
   private readonly bgColor: [number, number, number] = [0, 0, 0]; // Black
@@ -129,6 +135,27 @@ export class LauncherApp implements App {
   }
 
   async onActivate(): Promise<void> {
+    // Check for app crash errors
+    const error = this.appFramework.getLastError();
+    if (error) {
+      console.log(
+        `[Launcher] Displaying error: ${error.appName} - ${error.message}`
+      );
+      this.errorMessage = `${error.appName} - ${error.message}`;
+      this.errorScrollOffset = 0; // Reset scroll
+
+      // Clear error after 10 seconds (longer for reading)
+      if (this.errorTimeout) {
+        clearTimeout(this.errorTimeout);
+      }
+      this.errorTimeout = setTimeout(() => {
+        this.errorMessage = null;
+        this.errorTimeout = null;
+        this.errorScrollOffset = 0;
+        this.dirty = true;
+      }, 10000);
+    }
+
     // Pre-load all emoji icons when launcher activates
     const emojiLoader = getEmojiLoader();
     const loadPromises = this.apps.map((app) =>
@@ -214,6 +241,47 @@ export class LauncherApp implements App {
         }
         break;
 
+      // Error message scrolling with comma/period
+      case ",":
+      case "<":
+        if (this.errorMessage && this.errorScrollOffset > 0) {
+          this.errorScrollOffset--;
+          // Reset timeout - user is actively interacting
+          if (this.errorTimeout) {
+            clearTimeout(this.errorTimeout);
+            this.errorTimeout = setTimeout(() => {
+              this.errorMessage = null;
+              this.errorTimeout = null;
+              this.errorScrollOffset = 0;
+              this.dirty = true;
+            }, 10000);
+          }
+          handled = true;
+        }
+        break;
+
+      case ".":
+      case ">":
+        if (this.errorMessage) {
+          const maxChars = 30;
+          const maxOffset = Math.max(0, this.errorMessage.length - maxChars);
+          if (this.errorScrollOffset < maxOffset) {
+            this.errorScrollOffset++;
+            // Reset timeout - user is actively interacting
+            if (this.errorTimeout) {
+              clearTimeout(this.errorTimeout);
+              this.errorTimeout = setTimeout(() => {
+                this.errorMessage = null;
+                this.errorTimeout = null;
+                this.errorScrollOffset = 0;
+                this.dirty = true;
+              }, 10000);
+            }
+            handled = true;
+          }
+        }
+        break;
+
       case InputKeys.UP:
       case "w":
       case "W":
@@ -268,13 +336,16 @@ export class LauncherApp implements App {
     // Draw title bar with ZX Spectrum border effect
     this.drawTitleBar(matrix);
 
+    // Draw bottom bar
+    this.drawBottomBar(matrix);
+
     // Draw app icons in grid
     for (let i = 0; i < this.apps.length; i++) {
       const row = Math.floor(i / this.cols);
       const col = i % this.cols;
 
-      const x = this.startX + col * (this.iconSize + this.iconSpacing);
-      const y = this.startY + row * (this.iconSize + this.iconSpacing);
+      const x = this.startX + col * (this.iconSize + this.colSpacing);
+      const y = this.startY + row * (this.iconSize + this.rowSpacing);
 
       this.drawIcon(matrix, this.apps[i], x, y, i === this.selectedIndex);
     }
@@ -289,8 +360,8 @@ export class LauncherApp implements App {
   }
 
   private drawTitleBar(matrix: DisplayBuffer): void {
-    // Dark background bar for header (same as icon backgrounds)
-    matrix.rect(0, 0, 256, 16, [30, 30, 30], true);
+    // Dark background bar for header - increased brightness for visibility
+    matrix.rect(0, 0, 256, 16, [50, 50, 50], true);
 
     // Compact header: 'pizxel' on left, time on right
     matrix.text("pizxel", 4, 4, this.textColor);
@@ -306,6 +377,52 @@ export class LauncherApp implements App {
     // No divider line - header background provides visual separation
   }
 
+  private drawBottomBar(matrix: DisplayBuffer): void {
+    const barY = 176; // Bottom bar at y=176 (16px height)
+
+    if (this.errorMessage) {
+      // Error state: red background, white text
+      matrix.rect(0, barY, 256, 16, [200, 0, 0], true);
+
+      // Show scrollable window of error message
+      const maxChars = 28; // Leave room for scroll indicators
+      const canScrollLeft = this.errorScrollOffset > 0;
+      const canScrollRight =
+        this.errorScrollOffset + maxChars < this.errorMessage.length;
+
+      // Extract visible portion
+      let message = this.errorMessage.substring(
+        this.errorScrollOffset,
+        this.errorScrollOffset + maxChars
+      );
+
+      // Add scroll indicators with comma/period hint
+      if (canScrollLeft && canScrollRight) {
+        message = "<" + message + ">";
+      } else if (canScrollLeft) {
+        message = "<" + message + " ";
+      } else if (canScrollRight) {
+        message = " " + message + ">";
+      }
+
+      const messageWidth = message.length * 8;
+      const messageX = Math.floor((256 - messageWidth) / 2);
+      matrix.text(message, messageX, barY + 4, [255, 255, 255]);
+    } else {
+      // Normal state: dark background like top bar
+      matrix.rect(0, barY, 256, 16, [50, 50, 50], true);
+
+      // Show selected app name
+      if (this.apps.length > 0 && this.selectedIndex < this.apps.length) {
+        const selectedApp = this.apps[this.selectedIndex];
+        const appName = selectedApp.name;
+        const nameWidth = appName.length * 8;
+        const nameX = Math.floor((256 - nameWidth) / 2);
+        matrix.text(appName, nameX, barY + 4, this.textColor);
+      }
+    }
+  }
+
   private drawIcon(
     matrix: DisplayBuffer,
     icon: AppIcon,
@@ -314,7 +431,7 @@ export class LauncherApp implements App {
     selected: boolean
   ): void {
     // Draw icon background (subtle)
-    const bgShade: [number, number, number] = [16, 16, 32];
+    const bgShade: [number, number, number] = [30, 30, 45];
     matrix.rect(
       x + 1,
       y + 1,
@@ -379,16 +496,6 @@ export class LauncherApp implements App {
       matrix.circle(centerX, centerY, 10, this.bgColor, false);
     }
 
-    // Draw app name below icon (centered, with more space)
-    const maxChars = 6; // Allow up to 6 characters with larger spacing
-    const displayName = icon.name.substring(0, maxChars);
-    const nameX = x + (this.iconSize - displayName.length * 8) / 2;
-    const nameY = y + this.iconSize + 4;
-    matrix.text(
-      displayName,
-      Math.floor(nameX),
-      Math.floor(nameY),
-      selected ? this.selectedColor : this.textColor
-    );
+    // No text label - app name shown in bottom bar when selected
   }
 }

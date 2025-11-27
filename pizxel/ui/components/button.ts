@@ -51,11 +51,22 @@ export class Button extends Widget {
     const borderColor: RGB = this.focused ? [255, 255, 255] : [128, 128, 128];
     matrix.rect(pos.x, pos.y, this.width, this.height, borderColor, false);
 
-    // Text (centered)
+    // Text (centered, clipped to button bounds)
     const textColor: RGB = this.focused ? [0, 0, 0] : this.color;
-    const textX = pos.x + (this.width - this.text.length * 8) / 2;
-    const textY = pos.y + (this.height - 8) / 2;
-    matrix.text(this.text, Math.floor(textX), Math.floor(textY), textColor);
+    const textX = pos.x + Math.floor((this.width - this.text.length * 8) / 2);
+    const textY = pos.y + Math.floor((this.height - 8) / 2);
+
+    // Clip text if it would overflow button bounds
+    const maxChars = Math.floor((this.width - 4) / 8);
+    const displayText =
+      this.text.length > maxChars
+        ? this.text.substring(0, maxChars)
+        : this.text;
+    const finalTextX = Math.max(pos.x + 2, textX);
+
+    if (finalTextX + displayText.length * 8 <= pos.x + this.width) {
+      matrix.text(displayText, finalTextX, textY, textColor);
+    }
   }
 
   protected handleSelfEvent(event: InputEvent): boolean {

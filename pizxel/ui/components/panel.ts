@@ -46,4 +46,30 @@ export class Panel extends Container {
       }
     }
   }
+
+  // Override render to clip children to panel bounds
+  render(matrix: DisplayBuffer): void {
+    this.renderSelf(matrix);
+
+    const pos = this.getAbsolutePosition();
+    const innerX = pos.x + this.borderWidth;
+    const innerY = pos.y + this.borderWidth;
+    const innerWidth = this.width - this.borderWidth * 2;
+    const innerHeight = this.height - this.borderWidth * 2;
+
+    // Render children but check if they're within panel bounds
+    for (const child of this.children) {
+      const childPos = child.getAbsolutePosition();
+
+      // Simple bounds check - only render if child intersects with panel
+      if (
+        childPos.x < innerX + innerWidth &&
+        childPos.x + child.width > innerX &&
+        childPos.y < innerY + innerHeight &&
+        childPos.y + child.height > innerY
+      ) {
+        child.render(matrix);
+      }
+    }
+  }
 }

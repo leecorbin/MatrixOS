@@ -20,6 +20,8 @@ export class AppFramework {
   private targetFPS: number = 60;
   private frameInterval: number = 1000 / this.targetFPS;
 
+  private lastError: { appName: string; message: string } | null = null;
+
   constructor(deviceManager: DeviceManager) {
     this.deviceManager = deviceManager;
     this.displayBuffer = new DisplayBuffer(
@@ -43,6 +45,9 @@ export class AppFramework {
     if (this.activeApp) {
       this.activeApp.onDeactivate();
     }
+
+    // Clear last error when switching apps
+    this.lastError = null;
 
     // Activate new app
     this.activeApp = app;
@@ -100,12 +105,16 @@ export class AppFramework {
 
     // Update active app
     if (this.activeApp) {
-      this.activeApp.onUpdate(deltaTime);
+      try {
+        this.activeApp.onUpdate(deltaTime);
 
-      // Render if app is dirty
-      if ((this.activeApp as any).dirty) {
-        console.log(`[AppFramework] App is dirty, rendering...`);
-        this.render();
+        // Render if app is dirty
+        if ((this.activeApp as any).dirty) {
+          console.log(`[AppFramework] App is dirty, rendering...`);
+          this.render();
+        }
+      } catch (error) {
+        this.handleAppError(this.activeApp, error);
       }
     }
 
@@ -125,22 +134,26 @@ export class AppFramework {
 
     console.log("[AppFramework] render() called");
 
-    // Let app render to buffer
-    this.activeApp.render(this.displayBuffer);
+    try {
+      // Let app render to buffer
+      this.activeApp.render(this.displayBuffer);
 
-    // Copy buffer to display driver
-    const display = this.deviceManager.getDisplay();
-    const buffer = this.displayBuffer.getBuffer();
+      // Copy buffer to display driver
+      const display = this.deviceManager.getDisplay();
+      const buffer = this.displayBuffer.getBuffer();
 
-    console.log("[AppFramework] Copying buffer to display driver");
-    for (let y = 0; y < this.displayBuffer.getHeight(); y++) {
-      for (let x = 0; x < this.displayBuffer.getWidth(); x++) {
-        display.setPixel(x, y, buffer[y][x]);
+      console.log("[AppFramework] Copying buffer to display driver");
+      for (let y = 0; y < this.displayBuffer.getHeight(); y++) {
+        for (let x = 0; x < this.displayBuffer.getWidth(); x++) {
+          display.setPixel(x, y, buffer[y][x]);
+        }
       }
-    }
 
-    console.log("[AppFramework] Calling display.show()");
-    display.show();
+      console.log("[AppFramework] Calling display.show()");
+      display.show();
+    } catch (error) {
+      this.handleAppError(this.activeApp!, error);
+    }
   }
 
   /**
@@ -151,21 +164,57 @@ export class AppFramework {
       return;
     }
 
-    // Let app handle event
-    const handled = this.activeApp.onEvent(event);
+    try {
+      // Let app handle event
+      const handled = this.activeApp.onEvent(event);
 
-    // If app didn't handle, check for system keys
-    if (!handled) {
-      if (event.key === "Escape") {
-        // ESC returns to launcher (or does nothing if already in launcher)
-        // Only Ctrl+C (handled by OS) will exit the application
-        if (this.activeApp !== this.launcherApp && this.launcherApp) {
-          console.log("\nReturning to launcher...");
-          this.switchToApp(this.launcherApp);
+      // If app didn't handle, check for system keys
+      if (!handled) {
+        if (event.key === "Escape") {
+          // ESC returns to launcher (or does nothing if already in launcher)
+          // Only Ctrl+C (handled by OS) will exit the application
+          if (this.activeApp !== this.launcherApp && this.launcherApp) {
+            console.log("\nReturning to launcher...");
+            this.switchToApp(this.launcherApp);
+          }
+          // If in launcher, ESC does nothing - user must use Ctrl+C to exit
         }
-        // If in launcher, ESC does nothing - user must use Ctrl+C to exit
       }
+    } catch (error) {
+      this.handleAppError(this.activeApp!, error);
     }
+  }
+
+  /**
+   * Handle app crash - return to launcher with error message
+   */
+  private handleAppError(app: App, error: any): void {
+    console.error(`[AppFramework] App "${app.name}" crashed:`, error);
+
+    // Store error for launcher to display
+    this.lastError = {
+      appName: app.name,
+      message: error?.message || String(error),
+    };
+
+    // Return to launcher if we have one and we're not already in it
+    if (this.launcherApp && app !== this.launcherApp) {
+      console.log("[AppFramework] Returning to launcher due to error...");
+      this.switchToApp(this.launcherApp);
+    } else {
+      // If launcher itself crashed or no launcher, just stop
+      console.error("[AppFramework] Fatal error - no recovery possible");
+      this.stop();
+    }
+  }
+
+  /**
+   * Get and clear last error (for launcher to display)
+   */
+  getLastError(): { appName: string; message: string } | null {
+    const error = this.lastError;
+    this.lastError = null;
+    return error;
   }
 
   /**
