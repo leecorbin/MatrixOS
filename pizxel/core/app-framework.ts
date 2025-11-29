@@ -8,12 +8,14 @@
 import { App, InputEvent } from "../types";
 import { DisplayBuffer } from "./display-buffer";
 import { DeviceManager } from "./device-manager";
+import { NotificationManager } from "./notification-manager";
 
 export class AppFramework {
   private activeApp: App | null = null;
   private launcherApp: App | null = null; // Reference to launcher
   private deviceManager: DeviceManager;
   private displayBuffer: DisplayBuffer;
+  private notificationManager: NotificationManager;
 
   private running: boolean = false;
   private lastFrameTime: number = 0;
@@ -21,6 +23,9 @@ export class AppFramework {
   private frameInterval: number = 1000 / this.targetFPS;
 
   private lastError: { appName: string; message: string } | null = null;
+  private registeredApps: Map<string, App> = new Map();
+  private lastBackgroundTick: number = 0;
+  private backgroundTickInterval: number = 1000; // 1 second
 
   constructor(deviceManager: DeviceManager) {
     this.deviceManager = deviceManager;
@@ -28,6 +33,7 @@ export class AppFramework {
       deviceManager.getDisplay().getWidth(),
       deviceManager.getDisplay().getHeight()
     );
+    this.notificationManager = new NotificationManager();
   }
 
   /**
@@ -49,8 +55,23 @@ export class AppFramework {
     // Clear last error when switching apps
     this.lastError = null;
 
+    // Register app if not already registered
+    if (!this.registeredApps.has(app.name)) {
+      this.registeredApps.set(app.name, app);
+    }
+
     // Activate new app
     this.activeApp = app;
+
+    // Wire up request_foreground callback
+    (app as any).request_foreground = (message?: string) => {
+      this.notificationManager.requestForeground(
+        app,
+        message || "Needs attention",
+        "urgent"
+      );
+    };
+
     await this.activeApp.onActivate();
 
     console.log(`Switched to app: ${app.name}`);
@@ -103,6 +124,15 @@ export class AppFramework {
     const deltaTime = (now - this.lastFrameTime) / 1000; // Convert to seconds
     this.lastFrameTime = now;
 
+    // Update notification manager
+    this.notificationManager.update();
+
+    // Process background ticks (~1/second)
+    if (now - this.lastBackgroundTick >= this.backgroundTickInterval) {
+      this.processBackgroundTicks();
+      this.lastBackgroundTick = now;
+    }
+
     // Update active app
     if (this.activeApp) {
       try {
@@ -125,6 +155,30 @@ export class AppFramework {
   }
 
   /**
+   * Process background ticks for inactive apps
+   */
+  private processBackgroundTicks(): void {
+    for (const app of this.registeredApps.values()) {
+      // Skip active app (gets onUpdate calls)
+      if (app === this.activeApp) {
+        continue;
+      }
+
+      // Call onBackgroundTick if implemented
+      if (app.onBackgroundTick) {
+        try {
+          app.onBackgroundTick();
+        } catch (error) {
+          console.error(
+            `[AppFramework] Background tick error in "${app.name}":`,
+            error
+          );
+        }
+      }
+    }
+  }
+
+  /**
    * Render active app to display
    */
   private render(): void {
@@ -137,6 +191,9 @@ export class AppFramework {
     try {
       // Let app render to buffer
       this.activeApp.render(this.displayBuffer);
+
+      // Render notification overlay if present
+      this.notificationManager.renderOverlay(this.displayBuffer);
 
       // Copy buffer to display driver
       const display = this.deviceManager.getDisplay();
@@ -165,6 +222,20 @@ export class AppFramework {
     }
 
     try {
+      // Check if notification is showing and Enter is pressed
+      const notification = this.notificationManager.getCurrent();
+      if (notification && event.key === "Enter") {
+        // Switch to the app that requested foreground
+        const requestingApp = this.notificationManager.getRequestingApp();
+        if (requestingApp && requestingApp !== this.activeApp) {
+          console.log(
+            `[AppFramework] Switching to requesting app: ${requestingApp.name}`
+          );
+          this.switchToApp(requestingApp);
+          return;
+        }
+      }
+
       // Let app handle event
       const handled = this.activeApp.onEvent(event);
 

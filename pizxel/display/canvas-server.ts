@@ -27,6 +27,7 @@ export class CanvasServer {
   private clientCount: number = 0;
   private lastFrame: any = null;
   private keyCallback: ((key: string) => void) | null = null;
+  private fullscreenMode: boolean = false;
 
   constructor(options: CanvasServerOptions = {}) {
     this.port = options.port ?? 3000;
@@ -94,6 +95,14 @@ export class CanvasServer {
         }
       });
 
+      // Handle fullscreen toggle from browser
+      socket.on("fullscreen", (data: { enabled: boolean }) => {
+        this.fullscreenMode = data.enabled;
+        console.log(
+          `[CanvasServer] Fullscreen ${data.enabled ? "enabled" : "disabled"}`
+        );
+      });
+
       socket.on("disconnect", () => {
         this.clientCount--;
         console.log(
@@ -108,6 +117,22 @@ export class CanvasServer {
    */
   onKey(callback: (key: string) => void): void {
     this.keyCallback = callback;
+  }
+
+  /**
+   * Toggle fullscreen mode (sends command to all clients)
+   */
+  toggleFullscreen(): void {
+    this.fullscreenMode = !this.fullscreenMode;
+    this.io?.emit("fullscreen:toggle");
+    console.log(`[CanvasServer] Fullscreen toggled: ${this.fullscreenMode}`);
+  }
+
+  /**
+   * Check if in fullscreen mode
+   */
+  isFullscreen(): boolean {
+    return this.fullscreenMode;
   }
 
   /**
@@ -233,11 +258,125 @@ export class CanvasServer {
       align-items: center;
       min-height: 100vh;
     }
+
+    /* Fullscreen mode styling - multiple selector strategies */
+    html:fullscreen body,
+    html:-webkit-full-screen body,
+    html:-moz-full-screen body,
+    html:-ms-fullscreen body,
+    :fullscreen body,
+    :-webkit-full-screen body,
+    :-moz-full-screen body,
+    :-ms-fullscreen body {
+      padding: 0 !important;
+      margin: 0 !important;
+      background: #000 !important;
+      overflow: hidden !important;
+    }
+
+    /* Hide container styling in fullscreen - remove border, shadow, padding */
+    html:fullscreen #container,
+    html:-webkit-full-screen #container,
+    html:-moz-full-screen #container,
+    html:-ms-fullscreen #container,
+    :fullscreen #container,
+    :-webkit-full-screen #container,
+    :-moz-full-screen #container,
+    :-ms-fullscreen #container {
+      border: none !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      margin: 0 !important;
+      position: static !important;
+    }
+
+    /* Hide status bar in fullscreen */
+    html:fullscreen #status-bar,
+    html:-webkit-full-screen #status-bar,
+    html:-moz-full-screen #status-bar,
+    html:-ms-fullscreen #status-bar,
+    :fullscreen #status-bar,
+    :-webkit-full-screen #status-bar,
+    :-moz-full-screen #status-bar,
+    :-ms-fullscreen #status-bar {
+      display: none !important;
+    }
+
+    /* Make canvas fill entire screen */
+    html:fullscreen canvas,
+    html:-webkit-full-screen canvas,
+    html:-moz-full-screen canvas,
+    html:-ms-fullscreen canvas,
+    :fullscreen canvas,
+    :-webkit-full-screen canvas,
+    :-moz-full-screen canvas,
+    :-ms-fullscreen canvas {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
+      object-fit: contain !important;
+      image-rendering: pixelated !important;
+      background: #000 !important;
+      z-index: 9999 !important;
+    }
+
+    html:fullscreen #stats,
+    html:-webkit-full-screen #stats,
+    html:-moz-full-screen #stats,
+    html:-ms-fullscreen #stats,
+    :fullscreen #stats,
+    :-webkit-full-screen #stats,
+    :-moz-full-screen #stats,
+    :-ms-fullscreen #stats {
+      display: none !important;
+    }
+
+    html:fullscreen #fullscreen-btn,
+    html:-webkit-full-screen #fullscreen-btn,
+    html:-moz-full-screen #fullscreen-btn,
+    html:-ms-fullscreen #fullscreen-btn,
+    :fullscreen #fullscreen-btn,
+    :-webkit-full-screen #fullscreen-btn,
+    :-moz-full-screen #fullscreen-btn,
+    :-ms-fullscreen #fullscreen-btn {
+      display: none !important;
+    }
     
     #container {
+      position: relative;
       box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
       background: #000;
       padding: 10px;
+    }
+
+    #fullscreen-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 5px;
+      padding: 8px 12px;
+      font-size: 20px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.3s, background 0.2s;
+      z-index: 100;
+    }
+
+    #container:hover #fullscreen-btn {
+      opacity: 1;
+    }
+
+    #fullscreen-btn:hover {
+      background: rgba(0, 0, 0, 0.9);
+      border-color: rgba(255, 255, 255, 0.6);
     }
     
     canvas {
@@ -245,6 +384,8 @@ export class CanvasServer {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       transition: opacity 0.3s ease;
+      width: 100%;
+      height: auto;
     }
     
     canvas.disconnected {
@@ -270,6 +411,7 @@ export class CanvasServer {
 <body>
   <div id="container">
     <canvas id="display"></canvas>
+    <button id="fullscreen-btn" title="Fullscreen (F)">⛶</button>
   </div>
   
   <div id="stats">
@@ -455,8 +597,191 @@ export class CanvasServer {
       };
     });
     
+    // Fullscreen management (native browser fullscreen)
+    let isFullscreen = false;
+
+    function toggleFullscreen() {
+      const elem = document.documentElement;
+      const container = document.getElementById('container');
+      const canvas = document.getElementById('display');
+      const stats = document.getElementById('stats');
+      const fullscreenBtn = document.getElementById('fullscreen-btn');
+      
+      // Check if already in fullscreen
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      
+      console.log('toggleFullscreen called, currently fullscreen:', isCurrentlyFullscreen);
+      
+      if (!isCurrentlyFullscreen) {
+        // Enter fullscreen with vendor prefixes
+        const requestFullscreen = 
+          elem.requestFullscreen ||
+          elem.webkitRequestFullscreen ||
+          elem.mozRequestFullScreen ||
+          elem.msRequestFullscreen;
+          
+        if (requestFullscreen) {
+          requestFullscreen.call(elem).then(() => {
+            isFullscreen = true;
+            socket.emit('fullscreen', { enabled: true });
+            console.log('Entered fullscreen');
+            
+            // Apply fullscreen styles via JavaScript for maximum specificity
+            document.body.style.padding = '0';
+            document.body.style.margin = '0';
+            document.body.style.background = '#000';
+            document.body.style.overflow = 'hidden';
+            
+            if (container) {
+              container.style.border = 'none';
+              container.style.padding = '0';
+              container.style.boxShadow = 'none';
+              container.style.background = 'transparent';
+              container.style.margin = '0';
+            }
+            
+            if (stats) stats.style.display = 'none';
+            if (fullscreenBtn) fullscreenBtn.style.display = 'none';
+            
+            if (canvas) {
+              canvas.style.position = 'fixed';
+              canvas.style.top = '0';
+              canvas.style.left = '0';
+              canvas.style.width = '100vw';
+              canvas.style.height = '100vh';
+              canvas.style.maxWidth = 'none';
+              canvas.style.maxHeight = 'none';
+              canvas.style.objectFit = 'contain';
+              canvas.style.imageRendering = 'pixelated';
+              canvas.style.background = '#000';
+              canvas.style.zIndex = '9999';
+            }
+            
+            // Debug: Check applied styles
+            setTimeout(() => {
+              console.log('=== FULLSCREEN DEBUG ===');
+              console.log('HTML matches :fullscreen?', elem.matches(':fullscreen'));
+              if (container) {
+                console.log('Container computed style:', {
+                  border: getComputedStyle(container).border,
+                  boxShadow: getComputedStyle(container).boxShadow,
+                  padding: getComputedStyle(container).padding
+                });
+              }
+              if (stats) console.log('Stats display:', getComputedStyle(stats).display);
+              if (canvas) {
+                console.log('Canvas computed style:', {
+                  position: getComputedStyle(canvas).position,
+                  width: getComputedStyle(canvas).width,
+                  height: getComputedStyle(canvas).height,
+                  top: getComputedStyle(canvas).top,
+                  left: getComputedStyle(canvas).left
+                });
+              }
+              console.log('========================');
+            }, 100);
+          }).catch(err => {
+            console.error('Failed to enter fullscreen:', err);
+          });
+        }
+      } else {
+        // Exit fullscreen - restore original styles
+        const exitFullscreen =
+          document.exitFullscreen ||
+          document.webkitExitFullscreen ||
+          document.mozCancelFullScreen ||
+          document.msExitFullscreen;
+          
+        if (exitFullscreen) {
+          exitFullscreen.call(document).then(() => {
+            isFullscreen = false;
+            socket.emit('fullscreen', { enabled: false });
+            console.log('Exited fullscreen');
+            
+            // Remove inline styles to restore CSS
+            document.body.style.padding = '';
+            document.body.style.margin = '';
+            document.body.style.background = '';
+            document.body.style.overflow = '';
+            
+            if (container) {
+              container.style.border = '';
+              container.style.padding = '';
+              container.style.boxShadow = '';
+              container.style.background = '';
+              container.style.margin = '';
+            }
+            
+            if (stats) stats.style.display = '';
+            if (fullscreenBtn) fullscreenBtn.style.display = '';
+            
+            if (canvas) {
+              canvas.style.position = '';
+              canvas.style.top = '';
+              canvas.style.left = '';
+              canvas.style.width = '';
+              canvas.style.height = '';
+              canvas.style.maxWidth = '';
+              canvas.style.maxHeight = '';
+              canvas.style.objectFit = '';
+              canvas.style.imageRendering = '';
+              canvas.style.background = '';
+              canvas.style.zIndex = '';
+            }
+          }).catch(err => {
+            console.error('Failed to exit fullscreen:', err);
+          });
+        }
+      }
+    }
+
+    // Fullscreen button click handler
+    document.getElementById('fullscreen-btn').addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleFullscreen();
+    });
+
+    // Listen for fullscreen changes (user pressing ESC or F11)
+    // Handle all vendor-prefixed events
+    document.addEventListener('fullscreenchange', () => {
+      isFullscreen = !!document.fullscreenElement;
+      socket.emit('fullscreen', { enabled: isFullscreen });
+      console.log('Fullscreen changed:', isFullscreen);
+    });
+    document.addEventListener('webkitfullscreenchange', () => {
+      isFullscreen = !!document.webkitFullscreenElement;
+      socket.emit('fullscreen', { enabled: isFullscreen });
+    });
+    document.addEventListener('mozfullscreenchange', () => {
+      isFullscreen = !!document.mozFullScreenElement;
+      socket.emit('fullscreen', { enabled: isFullscreen });
+    });
+    document.addEventListener('msfullscreenchange', () => {
+      isFullscreen = !!document.msFullscreenElement;
+      socket.emit('fullscreen', { enabled: isFullscreen });
+    });
+
     // Keyboard input handling
     document.addEventListener('keydown', (e) => {
+      // F key toggles fullscreen (but not when typing in input fields)
+      if ((e.key === 'f' || e.key === 'F') && !e.target.matches('input, textarea')) {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+
+      // F11 always toggles fullscreen
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+
       // Prevent default browser behavior for arrow keys, space, etc.
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', ' ', 'Enter', 'Escape', 'Tab'].includes(e.key)) {
         e.preventDefault();

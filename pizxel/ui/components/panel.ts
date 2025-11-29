@@ -57,19 +57,15 @@ export class Panel extends Container {
     const innerWidth = this.width - this.borderWidth * 2;
     const innerHeight = this.height - this.borderWidth * 2;
 
-    // Render children but check if they're within panel bounds
-    for (const child of this.children) {
-      const childPos = child.getAbsolutePosition();
+    // Push clip region for panel interior (excluding border)
+    matrix.pushClipRegion(innerX, innerY, innerWidth, innerHeight);
 
-      // Simple bounds check - only render if child intersects with panel
-      if (
-        childPos.x < innerX + innerWidth &&
-        childPos.x + child.width > innerX &&
-        childPos.y < innerY + innerHeight &&
-        childPos.y + child.height > innerY
-      ) {
-        child.render(matrix);
-      }
+    // Render all children (clipping will handle overflow)
+    for (const child of this.children) {
+      child.render(matrix);
     }
+
+    // Restore previous clip region
+    matrix.popClipRegion();
   }
 }
