@@ -21,9 +21,14 @@ import { Audio } from "./audio/audio";
 
 // Global audio instance (accessible to all apps)
 let globalAudio: Audio | null = null;
+let globalAppFramework: AppFramework | null = null;
 
 export function getAudio(): Audio | null {
   return globalAudio;
+}
+
+export function getAppFramework(): AppFramework | null {
+  return globalAppFramework;
 }
 
 async function main() {

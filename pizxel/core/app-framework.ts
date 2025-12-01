@@ -9,6 +9,7 @@ import { App, InputEvent } from "../types";
 import { DisplayBuffer } from "./display-buffer";
 import { DeviceManager } from "./device-manager";
 import { NotificationManager } from "./notification-manager";
+import { StandbyManager } from "../standby-manager";
 
 export class AppFramework {
   private activeApp: App | null = null;
@@ -16,6 +17,7 @@ export class AppFramework {
   private deviceManager: DeviceManager;
   private displayBuffer: DisplayBuffer;
   private notificationManager: NotificationManager;
+  private standbyManager: StandbyManager;
 
   private running: boolean = false;
   private lastFrameTime: number = 0;
@@ -27,6 +29,8 @@ export class AppFramework {
   private lastBackgroundTick: number = 0;
   private backgroundTickInterval: number = 1000; // 1 second
 
+  private appBeforeStandby: App | null = null; // Save app to return to
+
   constructor(deviceManager: DeviceManager) {
     this.deviceManager = deviceManager;
     this.displayBuffer = new DisplayBuffer(
@@ -34,6 +38,15 @@ export class AppFramework {
       deviceManager.getDisplay().getHeight()
     );
     this.notificationManager = new NotificationManager();
+    this.standbyManager = new StandbyManager();
+
+    // Wire up standby callbacks
+    this.standbyManager.onStandbyActivate = (appId: string) => {
+      this.activateStandby(appId);
+    };
+    this.standbyManager.onStandbyDeactivate = () => {
+      this.deactivateStandby();
+    };
   }
 
   /**
@@ -98,6 +111,9 @@ export class AppFramework {
     // Set up input handler
     this.deviceManager.onInput(this.handleInput.bind(this));
 
+    // Start standby manager
+    this.standbyManager.start();
+
     console.log("Event loop started");
 
     // Start frame loop
@@ -109,6 +125,7 @@ export class AppFramework {
    */
   stop(): void {
     this.running = false;
+    this.standbyManager.stop();
     console.log("Event loop stopped");
   }
 
@@ -221,6 +238,9 @@ export class AppFramework {
       return;
     }
 
+    // Notify standby manager of input (resets idle timer / exits standby)
+    this.standbyManager.onInputEvent();
+
     try {
       // Check if notification is showing and Enter is pressed
       const notification = this.notificationManager.getCurrent();
@@ -254,6 +274,58 @@ export class AppFramework {
     } catch (error) {
       this.handleAppError(this.activeApp!, error);
     }
+  }
+
+  /**
+   * Activate standby mode
+   */
+  private async activateStandby(appId: string): Promise<void> {
+    console.log(`[AppFramework] Activating standby: ${appId}`);
+
+    // Save current app to return to later
+    this.appBeforeStandby = this.activeApp;
+
+    // Find standby app
+    const standbyApp = this.registeredApps.get(appId);
+    if (!standbyApp) {
+      console.error(`[AppFramework] Standby app "${appId}" not found`);
+      return;
+    }
+
+    // Switch to standby app
+    await this.switchToApp(standbyApp);
+
+    // Call standby-specific activation if app supports it
+    if ((standbyApp as any).onStandbyActivate) {
+      (standbyApp as any).onStandbyActivate();
+    }
+  }
+
+  /**
+   * Deactivate standby mode (return to previous app)
+   */
+  private async deactivateStandby(): Promise<void> {
+    console.log("[AppFramework] Deactivating standby");
+
+    // Call standby-specific deactivation if current app supports it
+    if (this.activeApp && (this.activeApp as any).onStandbyDeactivate) {
+      (this.activeApp as any).onStandbyDeactivate();
+    }
+
+    // Return to previous app (or launcher if none)
+    const targetApp = this.appBeforeStandby || this.launcherApp;
+    if (targetApp) {
+      await this.switchToApp(targetApp);
+    }
+
+    this.appBeforeStandby = null;
+  }
+
+  /**
+   * Get the standby manager (for configuration UI)
+   */
+  getStandbyManager(): StandbyManager {
+    return this.standbyManager;
   }
 
   /**
