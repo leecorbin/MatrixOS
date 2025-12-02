@@ -5,7 +5,9 @@
   "main": "pizxel/start.ts",
   "scripts": {
     "start": "tsx pizxel/start.ts",
+    "start:fb": "tsx pizxel/start.ts --fb",
     "start:canvas": "tsx pizxel/start.ts --canvas",
+    "start:term": "tsx pizxel/start.ts --term",
     "typecheck": "tsc --noEmit",
     "test": "tsx tests/example-test.ts",
     "clean": "rm -rf dist"

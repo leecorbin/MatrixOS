@@ -1,0 +1,9 @@
+{
+  "name": "Standby",
+  "version": "1.0.0",
+  "description": "Screensaver with animated modes",
+  "author": "PiZXel",
+  "icon": "💤",
+  "main": "standby.ts",
+  "color": [100, 100, 150]
+}
