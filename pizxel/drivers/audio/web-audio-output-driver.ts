@@ -1,20 +1,20 @@
 /**
- * Web Audio Driver
+ * Web Audio Output Driver
  *
  * Audio driver implementation using Web Audio API for browser-based audio.
  * Supports beeps, sweeps, noise, and simple melodies.
  */
 
 import {
-  AudioDriver,
+  AudioOutputDriver,
   SoundEffect,
   BeepParams,
   SweepParams,
   NoiseParams,
   MelodyParams,
-} from "./audio-driver";
+} from "./audio-output-driver";
 
-export class WebAudioDriver implements AudioDriver {
+export class WebAudioOutputDriver implements AudioOutputDriver {
   private context: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private volume: number = 0.5;
@@ -23,7 +23,7 @@ export class WebAudioDriver implements AudioDriver {
 
   async initialize(): Promise<void> {
     if (typeof window === "undefined" || !window.AudioContext) {
-      console.warn("[WebAudioDriver] Web Audio API not available");
+      console.warn("[WebAudioOutput] Web Audio API not available");
       return;
     }
 
@@ -38,7 +38,7 @@ export class WebAudioDriver implements AudioDriver {
     // Register default sound effects
     this.registerDefaultSounds();
 
-    console.log("[WebAudioDriver] Initialized");
+    console.log("[WebAudioOutput] Initialized");
   }
 
   private registerDefaultSounds(): void {
@@ -175,7 +175,7 @@ export class WebAudioDriver implements AudioDriver {
   playSound(name: string): void {
     const sound = this.sounds.get(name);
     if (!sound) {
-      console.warn(`[WebAudioDriver] Sound "${name}" not found`);
+      console.warn(`[WebAudioOutput] Sound "${name}" not found`);
       return;
     }
 

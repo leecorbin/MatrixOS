@@ -28,6 +28,8 @@ export class CanvasServer {
   private lastFrame: any = null;
   private keyCallback: ((key: string) => void) | null = null;
   private fullscreenMode: boolean = false;
+  private audioInputCallback: ((event: string, data: any) => void) | null =
+    null;
 
   constructor(options: CanvasServerOptions = {}) {
     this.port = options.port ?? 3000;
@@ -103,6 +105,43 @@ export class CanvasServer {
         );
       });
 
+      // Handle audio input events from browser
+      socket.on("audio:started", () => {
+        if (this.audioInputCallback) {
+          this.audioInputCallback("audio:started", {});
+        }
+      });
+
+      socket.on("audio:stopped", () => {
+        if (this.audioInputCallback) {
+          this.audioInputCallback("audio:stopped", {});
+        }
+      });
+
+      socket.on("audio:denied", () => {
+        if (this.audioInputCallback) {
+          this.audioInputCallback("audio:denied", {});
+        }
+      });
+
+      socket.on("audio:analysis", (data: any) => {
+        if (this.audioInputCallback) {
+          this.audioInputCallback("audio:analysis", data);
+        }
+      });
+
+      socket.on("audio:beat", (data: any) => {
+        if (this.audioInputCallback) {
+          this.audioInputCallback("audio:beat", data);
+        }
+      });
+
+      socket.on("audio:error", (data: any) => {
+        if (this.audioInputCallback) {
+          this.audioInputCallback("audio:error", data);
+        }
+      });
+
       socket.on("disconnect", () => {
         this.clientCount--;
         console.log(
@@ -155,6 +194,29 @@ export class CanvasServer {
     volume: number = 0.5
   ): void {
     this.io?.emit("audio:sweep", { startFreq, endFreq, duration, volume });
+  }
+
+  /**
+   * Set callback for audio input events from browser
+   */
+  onAudioInput(callback: (event: string, data: any) => void): void {
+    this.audioInputCallback = callback;
+  }
+
+  /**
+   * Request browser to start audio capture
+   */
+  requestAudioStart(): void {
+    console.log("[CanvasServer] Requesting browser to start audio capture");
+    this.io?.emit("audio:request-start");
+  }
+
+  /**
+   * Request browser to stop audio capture
+   */
+  requestAudioStop(): void {
+    console.log("[CanvasServer] Requesting browser to stop audio capture");
+    this.io?.emit("audio:request-stop");
   }
 
   /**
@@ -807,9 +869,316 @@ export class CanvasServer {
     // Focus canvas to receive keyboard events
     canvas.focus();
     canvas.tabIndex = 0;
+
+    // ===== AUDIO INPUT (Microphone) =====
+    let audioInputContext = null;
+    let audioInputAnalyser = null;
+    let audioInputStream = null;
+    let audioInputSource = null;
+    let isCapturingAudio = false;
+    let audioAnalysisInterval = null;
+
+    // FFT configuration
+    const fftSize = 2048;
+    const numBands = 32;
+
+    // For beat detection
+    let beatHistory = [];
+    let lastBeatTime = 0;
+    const beatThreshold = 1.3;
+
+    // For classification
+    let energyHistory = [];
+    let spectralHistory = [];
+    const classificationWindow = 30;
+
+    async function startAudioCapture() {
+      if (isCapturingAudio) return;
+
+      try {
+        // Request microphone access
+        audioInputStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          },
+        });
+
+        // Create audio context
+        audioInputContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Create analyser node
+        audioInputAnalyser = audioInputContext.createAnalyser();
+        audioInputAnalyser.fftSize = fftSize;
+        audioInputAnalyser.smoothingTimeConstant = 0.8;
+
+        // Connect microphone to analyser
+        audioInputSource = audioInputContext.createMediaStreamSource(audioInputStream);
+        audioInputSource.connect(audioInputAnalyser);
+
+        isCapturingAudio = true;
+        socket.emit('audio:started');
+        console.log('[AudioInput] Started microphone capture');
+
+        // Start analysis loop
+        startAudioAnalysis();
+      } catch (err) {
+        console.error('[AudioInput] Failed to start:', err);
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          socket.emit('audio:denied');
+        } else {
+          socket.emit('audio:error', { message: err.message });
+        }
+      }
+    }
+
+    function stopAudioCapture() {
+      if (!isCapturingAudio) return;
+
+      // Stop analysis
+      if (audioAnalysisInterval) {
+        clearInterval(audioAnalysisInterval);
+        audioAnalysisInterval = null;
+      }
+
+      // Stop tracks
+      if (audioInputStream) {
+        audioInputStream.getTracks().forEach(track => track.stop());
+        audioInputStream = null;
+      }
+
+      // Disconnect source
+      if (audioInputSource) {
+        audioInputSource.disconnect();
+        audioInputSource = null;
+      }
+
+      // Close context
+      if (audioInputContext && audioInputContext.state !== 'closed') {
+        audioInputContext.close();
+        audioInputContext = null;
+      }
+
+      audioInputAnalyser = null;
+      isCapturingAudio = false;
+      socket.emit('audio:stopped');
+      console.log('[AudioInput] Stopped microphone capture');
+    }
+
+    function startAudioAnalysis() {
+      if (!audioInputAnalyser) return;
+
+      const frequencyData = new Float32Array(audioInputAnalyser.frequencyBinCount);
+      const timeDomainData = new Float32Array(audioInputAnalyser.fftSize);
+
+      // Run analysis at 60fps
+      audioAnalysisInterval = setInterval(() => {
+        if (!audioInputAnalyser || !isCapturingAudio) return;
+
+        // Get frequency data
+        audioInputAnalyser.getFloatFrequencyData(frequencyData);
+        audioInputAnalyser.getFloatTimeDomainData(timeDomainData);
+
+        // Calculate spectrum bands
+        const spectrum = calculateSpectrum(frequencyData);
+
+        // Calculate levels
+        const levels = calculateLevels(timeDomainData);
+
+        // Calculate waveform (downsample to 128 samples)
+        const waveform = calculateWaveform(timeDomainData);
+
+        // Classify audio and detect beats
+        const classification = classifyAudio(spectrum, levels);
+
+        // Send analysis to server
+        socket.emit('audio:analysis', {
+          spectrum,
+          levels,
+          waveform,
+          classification,
+        });
+
+        // Check for beat
+        if (classification.hasBeat) {
+          socket.emit('audio:beat', {
+            tempo: classification.tempo,
+            confidence: classification.confidence,
+          });
+        }
+      }, 1000 / 60);
+    }
+
+    function calculateSpectrum(frequencyData) {
+      const bands = new Array(numBands).fill(0);
+      const binCount = frequencyData.length;
+      const binsPerBand = Math.floor(binCount / numBands);
+
+      // Use logarithmic frequency distribution for more musical bands
+      for (let i = 0; i < numBands; i++) {
+        // Calculate frequency range for this band (logarithmic)
+        const lowFreq = 20 * Math.pow(1000, i / numBands);
+        const highFreq = 20 * Math.pow(1000, (i + 1) / numBands);
+        
+        const sampleRate = audioInputContext.sampleRate;
+        const lowBin = Math.floor((lowFreq / sampleRate) * fftSize);
+        const highBin = Math.floor((highFreq / sampleRate) * fftSize);
+
+        let sum = 0;
+        let count = 0;
+        for (let j = lowBin; j <= highBin && j < binCount; j++) {
+          // Convert from dB to linear (0-1)
+          const db = frequencyData[j];
+          const linear = Math.pow(10, db / 20);
+          sum += linear;
+          count++;
+        }
+
+        bands[i] = count > 0 ? Math.min(1, sum / count * 5) : 0;
+      }
+
+      // Calculate bass/mid/treble for classification
+      const bassEnergy = bands.slice(0, 4).reduce((a, b) => a + b, 0) / 4;
+      const midEnergy = bands.slice(4, 16).reduce((a, b) => a + b, 0) / 12;
+      const trebleEnergy = bands.slice(16, 32).reduce((a, b) => a + b, 0) / 16;
+
+      return {
+        bands,
+        bassEnergy,
+        midEnergy,
+        trebleEnergy,
+      };
+    }
+
+    function calculateLevels(timeDomainData) {
+      // Calculate RMS
+      let sumSquares = 0;
+      let peak = 0;
+
+      for (let i = 0; i < timeDomainData.length; i++) {
+        const sample = timeDomainData[i];
+        sumSquares += sample * sample;
+        peak = Math.max(peak, Math.abs(sample));
+      }
+
+      const rms = Math.sqrt(sumSquares / timeDomainData.length);
+      const db = rms > 0 ? 20 * Math.log10(rms) : -100;
+
+      return {
+        rms: Math.min(1, rms * 5), // Normalize to 0-1 range
+        peak: Math.min(1, peak),
+        db: Math.max(-60, db), // Clamp to reasonable range
+      };
+    }
+
+    function calculateWaveform(timeDomainData) {
+      const numSamples = 128;
+      const step = Math.floor(timeDomainData.length / numSamples);
+      const samples = new Array(numSamples);
+
+      for (let i = 0; i < numSamples; i++) {
+        samples[i] = timeDomainData[i * step];
+      }
+
+      return { samples };
+    }
+
+    function classifyAudio(spectrum, levels) {
+      // Update energy history
+      const totalEnergy = levels.rms;
+      energyHistory.push(totalEnergy);
+      if (energyHistory.length > classificationWindow) {
+        energyHistory.shift();
+      }
+
+      // Update spectral history
+      spectralHistory.push([spectrum.bassEnergy, spectrum.midEnergy, spectrum.trebleEnergy]);
+      if (spectralHistory.length > classificationWindow) {
+        spectralHistory.shift();
+      }
+
+      // Calculate average energy
+      const avgEnergy = energyHistory.reduce((a, b) => a + b, 0) / energyHistory.length;
+
+      // Beat detection
+      let hasBeat = false;
+      let tempo = 0;
+      const now = Date.now();
+
+      if (spectrum.bassEnergy > avgEnergy * beatThreshold && now - lastBeatTime > 200) {
+        hasBeat = true;
+        
+        // Calculate tempo from beat intervals
+        const beatInterval = now - lastBeatTime;
+        if (beatInterval > 0 && beatInterval < 2000) {
+          tempo = Math.round(60000 / beatInterval);
+          tempo = Math.max(60, Math.min(200, tempo)); // Clamp to reasonable BPM
+        }
+
+        beatHistory.push(beatInterval);
+        if (beatHistory.length > 8) beatHistory.shift();
+
+        lastBeatTime = now;
+      }
+
+      // Classify audio type
+      let type = 'silence';
+      let confidence = 0;
+
+      if (levels.db < -50) {
+        type = 'silence';
+        confidence = 1;
+      } else if (spectralHistory.length >= 10) {
+        // Calculate spectral variance
+        const bassVariance = calculateVariance(spectralHistory.map(s => s[0]));
+        const midVariance = calculateVariance(spectralHistory.map(s => s[1]));
+
+        // Music: high bass variance, rhythmic patterns
+        if (bassVariance > 0.02 && beatHistory.length >= 3) {
+          type = 'music';
+          confidence = Math.min(1, bassVariance * 10);
+        }
+        // Speech: high mid-range, lower bass
+        else if (spectrum.midEnergy > spectrum.bassEnergy * 1.2 && midVariance > 0.01) {
+          type = 'speech';
+          confidence = Math.min(1, midVariance * 20);
+        }
+        // Noise: random distribution
+        else if (levels.rms > 0.1) {
+          type = 'noise';
+          confidence = 0.5;
+        }
+      }
+
+      return {
+        type,
+        confidence,
+        hasBeat,
+        tempo: tempo || undefined,
+      };
+    }
+
+    function calculateVariance(arr) {
+      if (arr.length === 0) return 0;
+      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+      return arr.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / arr.length;
+    }
+
+    // Listen for server requests to start/stop audio
+    socket.on('audio:request-start', () => {
+      console.log('[AudioInput] Server requested start');
+      startAudioCapture();
+    });
+
+    socket.on('audio:request-stop', () => {
+      console.log('[AudioInput] Server requested stop');
+      stopAudioCapture();
+    });
   </script>
 </body>
 </html>
     `.trim();
   }
 }
+

@@ -18,16 +18,23 @@ import { CanvasDisplayDriver } from "./drivers/display/canvas-display-driver";
 import { FramebufferDisplayDriver } from "./drivers/display/framebuffer-display";
 import { KeyboardInputDriver } from "./drivers/input/keyboard-input";
 import { LauncherApp } from "./apps/launcher";
-import { WebAudioDriver } from "./audio/web-audio-driver";
-import { CanvasAudioDriver } from "./audio/canvas-audio-driver";
+import { WebAudioOutputDriver } from "./drivers/audio/web-audio-output-driver";
+import { CanvasAudioOutputDriver } from "./drivers/audio/canvas-audio-output-driver";
+import { CanvasAudioInputProxy } from "./drivers/audio/canvas-audio-input-proxy";
 import { Audio } from "./audio/audio";
+import type { AudioInputDriver } from "./drivers/audio/audio-input-driver";
 
 // Global audio instance (accessible to all apps)
 let globalAudio: Audio | null = null;
+let globalAudioInput: AudioInputDriver | null = null;
 let globalAppFramework: AppFramework | null = null;
 
 export function getAudio(): Audio | null {
   return globalAudio;
+}
+
+export function getAudioInput(): AudioInputDriver | null {
+  return globalAudioInput;
 }
 
 export function getAppFramework(): AppFramework | null {
@@ -60,10 +67,12 @@ async function main() {
     deviceManager.registerDisplayDriver(FramebufferDisplayDriver);
   } else {
     // Auto-detect: Register all drivers, DeviceManager selects by priority
-    console.log("Display mode: Auto-detect (priority: framebuffer → canvas → terminal)\n");
+    console.log(
+      "Display mode: Auto-detect (priority: framebuffer → canvas → terminal)\n"
+    );
     deviceManager.registerDisplayDriver(FramebufferDisplayDriver); // Priority 90
-    deviceManager.registerDisplayDriver(CanvasDisplayDriver);      // Priority 80
-    deviceManager.registerDisplayDriver(TerminalDisplayDriver);    // Priority 50
+    deviceManager.registerDisplayDriver(CanvasDisplayDriver); // Priority 80
+    deviceManager.registerDisplayDriver(TerminalDisplayDriver); // Priority 50
   }
 
   deviceManager.registerInputDriver(KeyboardInputDriver);
@@ -86,12 +95,24 @@ async function main() {
   if (useCanvas) {
     const server = display.getServer();
     console.log(`Canvas server obtained: ${server ? "YES" : "NO"}`);
-    const audioDriver = new CanvasAudioDriver(server);
+
+    // Initialize audio output driver
+    const audioDriver = new CanvasAudioOutputDriver(server);
     await audioDriver.initialize();
     globalAudio = new Audio(audioDriver);
     console.log(
-      `Audio: Canvas mode (browser-based) - ${
+      `Audio Output: Canvas mode (browser-based) - ${
         globalAudio.isAvailable() ? "AVAILABLE" : "NOT AVAILABLE"
+      }`
+    );
+
+    // Initialize audio input driver (microphone via browser proxy)
+    const audioInputDriver = new CanvasAudioInputProxy(server);
+    await audioInputDriver.initialize();
+    globalAudioInput = audioInputDriver;
+    console.log(
+      `Audio Input: Canvas mode (browser microphone) - ${
+        globalAudioInput.isAvailable() ? "AVAILABLE" : "NOT AVAILABLE"
       }`
     );
   } else {
@@ -122,7 +143,7 @@ async function main() {
   if (brightnessStr) {
     const brightness = parseInt(brightnessStr);
     const display = deviceManager.getDisplay();
-    if (display && typeof (display as any).setBrightness === 'function') {
+    if (display && typeof (display as any).setBrightness === "function") {
       (display as any).setBrightness(brightness);
       console.log(`Display brightness set to ${brightness}%`);
     }

@@ -1,21 +1,21 @@
 /**
- * Canvas Audio Driver
+ * Canvas Audio Output Driver
  *
  * Audio driver for canvas mode that sends audio commands to browser via WebSocket.
  * Works alongside CanvasDisplayDriver.
  */
 
 import {
-  AudioDriver,
+  AudioOutputDriver,
   SoundEffect,
   BeepParams,
   SweepParams,
   NoiseParams,
   MelodyParams,
-} from "./audio-driver";
-import { CanvasServer } from "../display/canvas-server";
+} from "./audio-output-driver";
+import { CanvasServer } from "../../display/canvas-server";
 
-export class CanvasAudioDriver implements AudioDriver {
+export class CanvasAudioOutputDriver implements AudioOutputDriver {
   private volume: number = 0.5;
   private sounds: Map<string, SoundEffect> = new Map();
   private server: CanvasServer | null = null;
@@ -27,7 +27,7 @@ export class CanvasAudioDriver implements AudioDriver {
   async initialize(): Promise<void> {
     // Register default sound effects
     this.registerDefaultSounds();
-    console.log("[CanvasAudioDriver] Initialized (browser-based audio)");
+    console.log("[CanvasAudioOutput] Initialized (browser-based audio)");
   }
 
   private registerDefaultSounds(): void {
@@ -133,7 +133,7 @@ export class CanvasAudioDriver implements AudioDriver {
   beep(frequency: number, duration: number, volume: number = 0.5): void {
     if (!this.server) return;
     console.log(
-      `[CanvasAudioDriver] Sending beep: ${frequency}Hz, ${duration}ms, vol=${volume}`
+      `[CanvasAudioOutput] Sending beep: ${frequency}Hz, ${duration}ms, vol=${volume}`
     );
     this.server.sendBeep(frequency, duration, volume * this.volume);
   }
@@ -141,7 +141,7 @@ export class CanvasAudioDriver implements AudioDriver {
   playSound(name: string): void {
     const sound = this.sounds.get(name);
     if (!sound) {
-      console.warn(`[CanvasAudioDriver] Sound "${name}" not found`);
+      console.warn(`[CanvasAudioOutput] Sound "${name}" not found`);
       return;
     }
 

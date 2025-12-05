@@ -5,12 +5,12 @@
  * Wraps the audio driver to provide a clean interface.
  */
 
-import { AudioDriver } from "./audio-driver";
+import { AudioOutputDriver } from "../drivers/audio/audio-output-driver";
 
 export class Audio {
-  private driver: AudioDriver;
+  private driver: AudioOutputDriver;
 
-  constructor(driver: AudioDriver) {
+  constructor(driver: AudioOutputDriver) {
     this.driver = driver;
   }
 

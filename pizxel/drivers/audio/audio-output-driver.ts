@@ -1,11 +1,11 @@
 /**
- * Audio Driver Interface
+ * Audio Output Driver Interface
  *
  * Virtual audio driver system following the same pattern as DisplayDriver.
  * Allows different audio backends (Web Audio API, hardware GPIO, etc.)
  */
 
-export interface AudioDriver {
+export interface AudioOutputDriver {
   /**
    * Initialize the audio system
    */
